@@ -8,6 +8,14 @@ export default defineConfig({
     port: 3000,
     host: '0.0.0.0',
   },
+  preview: {
+    host: '0.0.0.0',
+    allowedHosts: [
+      'robloxkeys.store',
+      'www.robloxkeys.store',
+      '.up.railway.app',
+    ],
+  },
   plugins: [react()],
   resolve: {
     alias: {
