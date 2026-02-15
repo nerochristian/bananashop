@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronRight, X } from 'lucide-react';
 import { Product, ProductTier } from '../types';
 
@@ -15,19 +15,55 @@ export const ProductTierPanel: React.FC<ProductTierPanelProps> = ({
   onClose,
   onSelectTier,
 }) => {
+  const CLOSE_ANIMATION_MS = 360;
   const tiers = useMemo(() => (product?.tiers || []).filter((tier) => typeof tier === 'object'), [product]);
   const [selectedTierId, setSelectedTierId] = useState<string>('');
   const [hoveredTierId, setHoveredTierId] = useState<string>('');
+  const [tierGlowPosition, setTierGlowPosition] = useState<Record<string, { x: number; y: number }>>({});
+  const [isClosing, setIsClosing] = useState(false);
+  const closeTimerRef = useRef<number | null>(null);
+
+  const beginClose = () => {
+    if (isClosing) return;
+    setIsClosing(true);
+    if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
+    closeTimerRef.current = window.setTimeout(() => {
+      onClose();
+      closeTimerRef.current = null;
+    }, CLOSE_ANIMATION_MS);
+  };
+
+  const handleTierMouseMove = (tierId: string, event: React.MouseEvent<HTMLButtonElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    setTierGlowPosition((prev) => {
+      const existing = prev[tierId];
+      if (existing && Math.abs(existing.x - x) < 0.5 && Math.abs(existing.y - y) < 0.5) return prev;
+      return { ...prev, [tierId]: { x, y } };
+    });
+  };
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) {
+        window.clearTimeout(closeTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!isOpen) {
       setSelectedTierId('');
       setHoveredTierId('');
+      setTierGlowPosition({});
+      setIsClosing(false);
       return;
     }
     if (tiers.length > 0) {
       setSelectedTierId((current) => current || tiers[0].id);
     }
+    setIsClosing(false);
   }, [isOpen, product?.id, tiers]);
 
   if (!isOpen || !product || tiers.length === 0) return null;
@@ -38,11 +74,21 @@ export const ProductTierPanel: React.FC<ProductTierPanelProps> = ({
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-8">
       <div
-        className="absolute inset-0 bg-black/85 opacity-0 [backdrop-filter:blur(0px)] [-webkit-backdrop-filter:blur(0px)] animate-[tierBackdropIn_620ms_cubic-bezier(0.22,1,0.36,1)_forwards]"
-        onClick={onClose}
+        className={`absolute inset-0 bg-black/85 [backdrop-filter:blur(0px)] [-webkit-backdrop-filter:blur(0px)] ${
+          isClosing
+            ? 'animate-[tierBackdropOut_380ms_cubic-bezier(0.4,0,0.2,1)_forwards]'
+            : 'opacity-0 animate-[tierBackdropIn_620ms_cubic-bezier(0.22,1,0.36,1)_forwards]'
+        }`}
+        onClick={beginClose}
       />
 
-      <div className="relative w-full max-w-5xl overflow-hidden rounded-[26px] border border-white/10 bg-[#070a12] shadow-[0_40px_100px_rgba(0,0,0,0.72)] opacity-0 translate-y-12 will-change-transform animate-[tierPanelIn_700ms_cubic-bezier(0.16,1,0.3,1)_80ms_forwards]">
+      <div
+        className={`relative w-full max-w-5xl overflow-hidden rounded-[26px] border border-white/10 bg-[#070a12] shadow-[0_40px_100px_rgba(0,0,0,0.72)] will-change-transform ${
+          isClosing
+            ? 'animate-[tierPanelOut_420ms_cubic-bezier(0.4,0,0.2,1)_forwards]'
+            : 'opacity-0 translate-y-12 animate-[tierPanelIn_700ms_cubic-bezier(0.16,1,0.3,1)_80ms_forwards]'
+        }`}
+      >
         <div className="pointer-events-none absolute -top-24 left-1/2 h-64 w-[80%] -translate-x-1/2 bg-yellow-500/10 blur-[100px]" />
 
         <div className="relative flex items-center justify-between border-b border-white/10 bg-gradient-to-b from-white/[0.03] to-transparent px-5 py-4 sm:px-7">
@@ -53,7 +99,7 @@ export const ProductTierPanel: React.FC<ProductTierPanelProps> = ({
             </p>
           </div>
           <button
-            onClick={onClose}
+            onClick={beginClose}
             className="rounded-xl border border-white/20 bg-white/[0.03] p-2 text-white/60 transition hover:border-white/40 hover:bg-white/[0.08] hover:text-white"
           >
             <X className="h-5 w-5" />
@@ -71,20 +117,34 @@ export const ProductTierPanel: React.FC<ProductTierPanelProps> = ({
               <button
                 key={tier.id}
                 onMouseEnter={() => setHoveredTierId(tier.id)}
-                onMouseLeave={() => setHoveredTierId('')}
+                onMouseMove={(event) => handleTierMouseMove(tier.id, event)}
                 onFocus={() => setHoveredTierId(tier.id)}
-                onBlur={() => setHoveredTierId('')}
                 onClick={() => {
                   setSelectedTierId(tier.id);
                   onSelectTier(product, tier);
-                  onClose();
+                  beginClose();
                 }}
+                style={
+                  {
+                    '--tier-glow-x': `${tierGlowPosition[tier.id]?.x ?? 220}px`,
+                    '--tier-glow-y': `${tierGlowPosition[tier.id]?.y ?? 56}px`,
+                  } as React.CSSProperties
+                }
                 className={`group relative w-full overflow-hidden rounded-2xl border p-3 text-left transition duration-300 focus:outline-none ${
                   isSelected
                     ? 'border-[#facc15]/80 bg-[#11140c] shadow-[0_0_30px_rgba(250,204,21,0.2)]'
                     : 'border-white/10 bg-[#0d1118] hover:border-white/25 hover:bg-[#101522]'
                 }`}
               >
+                <div
+                  className={`pointer-events-none absolute inset-0 transition-opacity duration-500 ${
+                    isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                  }`}
+                  style={{
+                    background:
+                      'radial-gradient(280px circle at var(--tier-glow-x) var(--tier-glow-y), rgba(250,204,21,0.22) 0%, rgba(250,204,21,0.11) 34%, rgba(250,204,21,0.03) 52%, transparent 72%)',
+                  }}
+                />
                 <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(250,204,21,0.0)_0%,rgba(250,204,21,0.08)_35%,rgba(250,204,21,0.0)_70%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
 
                 <div className="relative flex items-center gap-4">
@@ -109,7 +169,7 @@ export const ProductTierPanel: React.FC<ProductTierPanelProps> = ({
                         {inStock ? `${Number(tier.stock || 0)} in stock` : 'Out of stock'}
                       </span>
                       {(tier.duration || product.duration) && (
-                        <span className="inline-flex rounded-full border border-white/15 bg-white/[0.04] px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-white/65">
+                        <span className="inline-flex rounded-full border border-white/15 bg-white/[0.04] px-3 py-1 text-sm font-black uppercase tracking-[0.08em] text-white/70">
                           {tier.duration || product.duration}
                         </span>
                       )}

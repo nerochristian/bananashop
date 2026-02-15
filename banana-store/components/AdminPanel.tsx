@@ -1448,29 +1448,35 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
       )}
 
       {openEditor && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-5xl rounded-2xl border border-[#facc15]/20 bg-[#0b0b0b] shadow-[0_24px_70px_rgba(0,0,0,0.6)]">
-            <div className="flex items-center justify-between border-b border-[#facc15]/20 p-4">
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/88 p-3 backdrop-blur-md sm:p-4">
+          <div className="relative w-full max-w-6xl overflow-hidden rounded-2xl border border-[#facc15]/25 bg-[#0b0b0b] shadow-[0_26px_80px_rgba(0,0,0,0.65)]">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(250,204,21,0.1),transparent_50%),radial-gradient(circle_at_bottom_left,rgba(250,204,21,0.07),transparent_42%)]" />
+            <div className="relative flex items-center justify-between border-b border-[#facc15]/20 p-4 sm:p-5">
               <div>
                 <h3 className="text-2xl font-black">{draft.name ? 'Edit Product' : 'Create Product'}</h3>
                 <div className="text-xs uppercase tracking-[0.18em] text-yellow-200/60">Catalog Configuration</div>
               </div>
-              <button onClick={() => setOpenEditor(false)} className="rounded-lg p-2 hover:bg-white/10"><X className="w-5 h-5" /></button>
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={() => setOpenEditor(false)} className={subtleButtonClass}>Cancel</button>
+                <button type="submit" form="admin-product-editor-form" className={`${primaryButtonClass} inline-flex items-center gap-2`}><Save className="h-4 w-4" /> Save</button>
+                <button onClick={() => setOpenEditor(false)} className="rounded-lg p-2 hover:bg-white/10"><X className="h-5 w-5" /></button>
+              </div>
             </div>
-            <form onSubmit={saveProduct} className="grid max-h-[80vh] grid-cols-1 gap-3 overflow-y-auto p-4 md:grid-cols-2">
-              <div className="md:col-span-2 rounded-lg border border-[#facc15]/20 bg-[#facc15]/10 px-3 py-2 text-xs text-yellow-100/80">
+            <form id="admin-product-editor-form" onSubmit={saveProduct} className="relative grid max-h-[82vh] grid-cols-1 gap-4 overflow-y-auto p-4 sm:p-5 md:grid-cols-2">
+              <div className="md:col-span-2 rounded-xl border border-[#facc15]/25 bg-[#facc15]/10 px-3 py-2 text-xs text-yellow-100/85">
                 Fill sections top to bottom: basics, pricing, media, then tiers. If a product has tiers, add stock per tier with <span className="font-semibold text-[#facc15]">Add Keys</span> in the Products table.
               </div>
-              <div className="md:col-span-2 rounded-lg border border-[#facc15]/20 bg-[#090909] p-3">
-                <div className="mb-3 text-sm font-bold">Basics</div>
+              <div className="md:col-span-2 rounded-xl border border-[#facc15]/20 bg-[#090909] p-4">
+                <div className="mb-1 text-sm font-black tracking-wide text-white">1. Basics</div>
+                <div className="mb-3 text-xs text-yellow-200/70">Core product identity and storefront labels.</div>
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                   <div className="md:col-span-2">
                     <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-yellow-200/70">Product Name</label>
-                    <input required value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} className={fieldClass} placeholder="Example: Netflix Lifetime" />
+                    <input required value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} className={fieldClass} placeholder="Example: Enzo Weekly" />
                   </div>
                   <div className="md:col-span-2">
                     <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-yellow-200/70">URL Path (optional)</label>
-                    <input value={draft.urlPath || ''} onChange={(e) => setDraft({ ...draft, urlPath: e.target.value })} className={fieldClass} placeholder="Example: netflix-lifetime" />
+                    <input value={draft.urlPath || ''} onChange={(e) => setDraft({ ...draft, urlPath: e.target.value })} className={fieldClass} placeholder="example-product-slug" />
                   </div>
                   <div className="md:col-span-2">
                     <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-yellow-200/70">Short Description</label>
@@ -1508,8 +1514,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
                 </div>
               </div>
 
-              <div className="md:col-span-2 rounded-lg border border-[#facc15]/20 bg-[#090909] p-3">
-                <div className="mb-3 text-sm font-bold">Pricing & Visibility</div>
+              <div className="md:col-span-2 rounded-xl border border-[#facc15]/20 bg-[#090909] p-4">
+                <div className="mb-1 text-sm font-black tracking-wide text-white">2. Pricing & Visibility</div>
+                <div className="mb-3 text-xs text-yellow-200/70">Set pricing, stock mode, and who can see this product.</div>
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                   <div>
                     <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-yellow-200/70">Price</label>
@@ -1550,8 +1557,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
                 </div>
               </div>
 
-              <div className="md:col-span-2 rounded-lg border border-[#facc15]/20 bg-[#090909] p-3">
-                <div className="mb-3 text-sm font-bold">Media & Content</div>
+              <div className="md:col-span-2 rounded-xl border border-[#facc15]/20 bg-[#090909] p-4">
+                <div className="mb-1 text-sm font-black tracking-wide text-white">3. Media & Content</div>
+                <div className="mb-3 text-xs text-yellow-200/70">Card/banner images plus product highlights and long description.</div>
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                   <div>
                     <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-yellow-200/70">Card Image URL</label>
@@ -1572,10 +1580,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
                 </div>
               </div>
 
-              <div className="md:col-span-2 rounded-lg border border-[#facc15]/20 bg-[#090909] p-3">
+              <div className="md:col-span-2 rounded-xl border border-[#facc15]/20 bg-[#090909] p-4">
                 <div className="mb-3 flex items-center justify-between">
                   <div>
-                    <div className="text-sm font-bold">Product Tiers</div>
+                    <div className="text-sm font-black tracking-wide text-white">4. Product Tiers</div>
                     <div className="text-xs text-yellow-200/70">Create variants like Basic, Country, 4K Plan. Stock is managed per tier with Add Keys.</div>
                   </div>
                   <button
@@ -1677,8 +1685,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
                 </div>
               </div>
 
-              <div className="md:col-span-2 rounded-lg border border-[#facc15]/20 bg-[#090909] p-3">
-                <div className="mb-2 text-sm font-bold">Display & Delivery Options</div>
+              <div className="md:col-span-2 rounded-xl border border-[#facc15]/20 bg-[#090909] p-4">
+                <div className="mb-1 text-sm font-black tracking-wide text-white">5. Display & Delivery Options</div>
+                <div className="mb-2 text-xs text-yellow-200/70">Control badges, counters, and delivery behavior.</div>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   <label className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm"><input type="checkbox" checked={Boolean(draft.hideStockCount)} onChange={(e) => setDraft({ ...draft, hideStockCount: e.target.checked })} /> Hide stock count</label>
                   <label className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm"><input type="checkbox" checked={Boolean(draft.showViewsCount)} onChange={(e) => setDraft({ ...draft, showViewsCount: e.target.checked })} /> Show views count</label>
@@ -1690,7 +1699,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
                 </div>
               </div>
 
-              <div className="md:col-span-2 flex justify-end gap-2 border-t border-[#facc15]/20 pt-3">
+              <div className="md:col-span-2 flex flex-wrap items-center justify-between gap-2 border-t border-[#facc15]/20 bg-[#0b0b0b]/85 pt-3 backdrop-blur-sm">
+                <div className="text-xs text-yellow-200/70">
+                  Mode: <span className="font-semibold text-white">{tierDrafts.length > 0 ? 'Tiered product' : 'Single product'}</span>
+                </div>
                 <button type="button" onClick={() => setOpenEditor(false)} className={subtleButtonClass}>Cancel</button>
                 <button type="submit" className={`${primaryButtonClass} inline-flex items-center gap-2`}><Save className="w-4 h-4" /> Save</button>
               </div>
