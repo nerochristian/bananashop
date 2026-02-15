@@ -1,5 +1,5 @@
 import React from 'react';
-import { Eye, Star } from 'lucide-react';
+import { Star } from 'lucide-react';
 import { Product, ServiceType } from '../types';
 
 interface ProductCardProps {
@@ -8,7 +8,7 @@ interface ProductCardProps {
   onBuyNow: (product: Product, quantity?: number) => void;
 }
 
-export const ProductCard: React.FC<ProductCardProps> = ({ product, onView, onBuyNow }) => {
+export const ProductCard: React.FC<ProductCardProps> = ({ product, onView }) => {
   const tierPrices = (product.tiers || []).map((tier) => Number(tier.price || 0)).filter((value) => value > 0);
   const isTiered = tierPrices.length > 0;
   const minTierPrice = isTiered ? Math.min(...tierPrices) : product.price;
@@ -26,7 +26,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onView, onBuy
   };
 
   return (
-    <div className="bg-[#0a0a0a]/80 backdrop-blur-md border border-white/5 rounded-3xl overflow-hidden transition-all duration-500 card-glow group flex flex-col h-full relative">
+    <button
+      type="button"
+      onClick={() => onView(product)}
+      className="bg-[#0a0a0a]/80 backdrop-blur-md border border-white/5 rounded-3xl overflow-hidden transition-all duration-500 card-glow group flex h-full w-full flex-col text-left relative md:flex-row"
+    >
       {/* Featured Badge Overlay */}
       {product.featured && (
         <div className="absolute top-4 right-4 z-10 bg-[#facc15]/90 text-black p-2 rounded-xl shadow-[0_0_20px_rgba(250,204,21,0.35)] animate-pulse">
@@ -35,7 +39,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onView, onBuy
       )}
 
       {/* Visual Header - 16:9 */}
-      <div className={`relative aspect-video w-full bg-gradient-to-br ${getHeaderGradient(product.type)} flex items-center justify-center border-b border-white/5 overflow-hidden`}>
+      <div className={`relative aspect-video w-full bg-gradient-to-br ${getHeaderGradient(product.type)} flex items-center justify-center border-b border-white/5 overflow-hidden md:aspect-auto md:w-[42%] md:border-b-0 md:border-r`}>
         {/* Top-Left Category Badge */}
         <div className="absolute top-4 left-4 bg-black/50 backdrop-blur-lg px-2.5 py-1.5 rounded-lg border border-white/10 flex items-center gap-2 transform transition-transform duration-500 group-hover:translate-x-1">
            <div className="grid grid-cols-2 gap-1">
@@ -90,24 +94,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onView, onBuy
            </div>
         </div>
 
-        {/* Action Button */}
-        <div className="mt-auto grid grid-cols-2 gap-2">
-          <button
-            onClick={() => onView(product)}
-            className="bg-[#121212] hover:bg-white/10 border border-white/10 text-white/90 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-[0.15em] flex items-center justify-center gap-2 transition-all active:scale-95"
-          >
-            <Eye className="w-4 h-4 transition-transform group-hover:scale-110" />
-            Details
-          </button>
-          <button
-            disabled={isOutOfStock}
-            onClick={() => onBuyNow(product, 1)}
-            className="bg-[#facc15] hover:bg-[#eab308] disabled:bg-white/10 disabled:text-white/30 text-black py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-[0.15em] transition-all active:scale-95"
-          >
-            Buy Now
-          </button>
+        <div className="mt-auto rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2">
+          <p className="text-[10px] font-black uppercase tracking-[0.15em] text-white/70">
+            Click anywhere to open
+          </p>
         </div>
       </div>
-    </div>
+    </button>
   );
 };

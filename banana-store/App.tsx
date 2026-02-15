@@ -14,7 +14,7 @@ import { Checkout } from './components/Checkout';
 import { Product, CartItem, AdminSettings, ProductTier } from './types';
 import { StorageService, Order, User } from './services/storageService';
 import { BRAND_CONFIG } from './config/brandConfig';
-import { ShopApiService } from './services/shopApiService';
+import { REQUIRE_API, ShopApiService } from './services/shopApiService';
 import { BotBridgeService } from './services/botBridgeService';
 
 const RESERVED_SLUGS = new Set(['vault', 'admin', 'auth', 'product']);
@@ -124,7 +124,7 @@ export default function App() {
   // Initialize and Load Data
   useEffect(() => {
     StorageService.init();
-    const localProducts = StorageService.getProducts();
+    const localProducts = REQUIRE_API ? [] : StorageService.getProducts();
     setProducts(localProducts);
     setAdminSettings(StorageService.getSettings());
     const session = StorageService.getSession();
@@ -190,12 +190,14 @@ export default function App() {
         }
 
         if (confirmation.products && confirmation.products.length > 0) {
-          StorageService.saveProducts(confirmation.products);
+          if (!REQUIRE_API) {
+            StorageService.saveProducts(confirmation.products);
+          }
           setProducts(confirmation.products);
         }
 
-        const existingOrder = StorageService.getOrders().some((order) => order.id === confirmation.order!.id);
-        if (!existingOrder) {
+        const existingOrder = !REQUIRE_API && StorageService.getOrders().some((order) => order.id === confirmation.order!.id);
+        if (!REQUIRE_API && !existingOrder) {
           StorageService.createOrder(confirmation.order, false);
         }
         BotBridgeService.sendOrder(confirmation.order, session, paymentMethod).catch((bridgeError) => {
@@ -283,15 +285,17 @@ export default function App() {
         await refreshApiHealth();
         const remoteProducts = await ShopApiService.getProducts();
         if (remoteProducts.length > 0) {
-          StorageService.saveProducts(remoteProducts);
+          if (!REQUIRE_API) {
+            StorageService.saveProducts(remoteProducts);
+          }
           setProducts(remoteProducts);
           applyRoute(window.location.pathname, remoteProducts, session, window.location.search);
           setApiOnline(true);
           return;
         }
 
-        // Bootstrap backend catalog from local seed when API starts empty.
-        if (localProducts.length > 0) {
+        // Bootstrap backend catalog from local seed only when local fallback mode is enabled.
+        if (!REQUIRE_API && localProducts.length > 0) {
           await Promise.all(localProducts.map((product) => ShopApiService.upsertProduct(product)));
           const seededProducts = await ShopApiService.getProducts();
           if (seededProducts.length > 0) {
@@ -303,7 +307,11 @@ export default function App() {
         }
       } catch (error) {
         setApiOnline(false);
-        console.warn('Store API unavailable, using local product cache.', error);
+        if (!REQUIRE_API) {
+          console.warn('Store API unavailable, using local product cache.', error);
+        } else {
+          console.error('Store API unavailable in required mode.', error);
+        }
       }
     })();
 
@@ -446,10 +454,18 @@ export default function App() {
     setCart([]);
     setIsCheckoutOpen(false);
     if (updatedProducts && updatedProducts.length > 0) {
-      StorageService.saveProducts(updatedProducts);
+      if (!REQUIRE_API) {
+        StorageService.saveProducts(updatedProducts);
+      }
       setProducts(updatedProducts);
     } else {
-      setProducts(StorageService.getProducts());
+      if (!REQUIRE_API) {
+        setProducts(StorageService.getProducts());
+      } else {
+        ShopApiService.getProducts()
+          .then((remoteProducts) => setProducts(remoteProducts))
+          .catch(() => setProducts([]));
+      }
     }
     pushRoute('/vault', products, user);
   };
@@ -470,12 +486,16 @@ export default function App() {
           if (typeof newProducts === 'function') {
             setProducts((prev) => {
               const updated = (newProducts as (prev: Product[]) => Product[])(prev);
-              StorageService.saveProducts(updated);
+              if (!REQUIRE_API) {
+                StorageService.saveProducts(updated);
+              }
               return updated;
             });
             return;
           }
-          StorageService.saveProducts(newProducts);
+          if (!REQUIRE_API) {
+            StorageService.saveProducts(newProducts);
+          }
           setProducts(newProducts);
         }}
         settings={adminSettings}
@@ -509,7 +529,7 @@ export default function App() {
             {apiOnline === false && (
               <div className="mx-auto mt-28 mb-4 max-w-7xl px-6">
                 <div className="rounded-xl border border-yellow-400/30 bg-yellow-400/10 px-4 py-3 text-xs font-bold uppercase tracking-wider text-yellow-200">
-                  Store API offline. Running in local mode only.
+                  Store API offline. Local fallback is disabled.
                 </div>
               </div>
             )}

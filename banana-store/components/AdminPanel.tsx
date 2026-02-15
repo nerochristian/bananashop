@@ -41,7 +41,7 @@ import {
   User,
 } from '../services/storageService';
 import { BRAND_CONFIG, BRAND_INITIALS } from '../config/brandConfig';
-import { ShopApiService } from '../services/shopApiService';
+import { AdminSummaryTopProduct, ShopApiService } from '../services/shopApiService';
 
 interface AdminPanelProps {
   products: Product[];
@@ -166,6 +166,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
   });
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [blacklist, setBlacklist] = useState<BlacklistEntry[]>([]);
+  const [summaryMetrics, setSummaryMetrics] = useState<{
+    revenue: number;
+    unitsSold: number;
+    pendingOrders: number;
+    totalOrders: number;
+    customers: number;
+  } | null>(null);
+  const [summaryTopProducts, setSummaryTopProducts] = useState<Array<{ name: string; units: number; revenue: number }>>([]);
+  const [summaryCustomerStats, setSummaryCustomerStats] = useState<Record<string, { orders: number; spent: number }>>({});
 
   const [openEditor, setOpenEditor] = useState(false);
   const [openInventoryModal, setOpenInventoryModal] = useState(false);
@@ -208,11 +217,63 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
         paypal: { enabled: false, automated: false },
         crypto: { enabled: false, automated: false },
       }));
+    ShopApiService.getAdminSummary()
+      .then((summary) => {
+        if (Array.isArray(summary.orders)) {
+          setOrders(summary.orders);
+        }
+        if (Array.isArray(summary.customers)) {
+          const normalizedUsers: User[] = summary.customers.map((customer, index) => {
+            const id = String(customer.id || customer.email || `customer-${index + 1}`);
+            return {
+              id,
+              email: String(customer.email || id),
+              role: 'user',
+              createdAt: String(customer.createdAt || new Date().toISOString()),
+            };
+          });
+          setUsers(normalizedUsers);
+
+          const nextStats: Record<string, { orders: number; spent: number }> = {};
+          summary.customers.forEach((customer, index) => {
+            const id = String(customer.id || customer.email || `customer-${index + 1}`);
+            nextStats[id] = {
+              orders: Number(customer.orders || 0),
+              spent: Number(customer.totalSpent || 0),
+            };
+          });
+          setSummaryCustomerStats(nextStats);
+        }
+        setSummaryMetrics({
+          revenue: Number(summary.metrics.revenue || 0),
+          unitsSold: Number(summary.metrics.unitsSold || 0),
+          pendingOrders: Number(summary.metrics.pendingOrders || 0),
+          totalOrders: Number(summary.metrics.totalOrders || 0),
+          customers: Number(summary.metrics.customers || 0),
+        });
+        const top = (summary.topProducts || []).map((row: AdminSummaryTopProduct) => ({
+          name: String(row.name || row.id || 'Unknown Product'),
+          units: Number(row.units || 0),
+          revenue: Number(row.revenue || 0),
+        }));
+        setSummaryTopProducts(top);
+      })
+      .catch(() => {
+        setSummaryMetrics(null);
+        setSummaryTopProducts([]);
+        setSummaryCustomerStats({});
+      });
   };
 
   useEffect(() => {
     refresh();
   }, [tab, products]);
+
+  useEffect(() => {
+    if (!['dashboard', 'orders', 'customers'].includes(tab)) return;
+    const timer = window.setInterval(() => refresh(), 15000);
+    return () => window.clearInterval(timer);
+  }, [tab]);
 
   useEffect(() => {
     if (!message) return;
@@ -226,10 +287,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
     return map;
   }, [users]);
 
-  const revenue = orders.filter((o) => o.status === 'completed').reduce((sum, o) => sum + o.total, 0);
-  const unitsSold = orders.reduce((sum, o) => sum + o.items.reduce((s, i) => s + i.quantity, 0), 0);
+  const localRevenue = orders.filter((o) => o.status === 'completed').reduce((sum, o) => sum + o.total, 0);
+  const localUnitsSold = orders
+    .filter((o) => o.status === 'completed')
+    .reduce((sum, o) => sum + o.items.reduce((s, i) => s + i.quantity, 0), 0);
   const customers = users.filter((u) => u.role === 'user');
-  const pendingOrders = orders.filter((o) => o.status === 'pending').length;
+  const localPendingOrders = orders.filter((o) => o.status === 'pending').length;
+  const revenue = summaryMetrics?.revenue ?? localRevenue;
+  const unitsSold = summaryMetrics?.unitsSold ?? localUnitsSold;
+  const pendingOrders = summaryMetrics?.pendingOrders ?? localPendingOrders;
+  const totalOrders = summaryMetrics?.totalOrders ?? orders.length;
+  const customersCount = summaryMetrics?.customers ?? customers.length;
   const openTickets = tickets.filter((ticket) => ticket.status === 'open').length;
   const lowStockCount = products.filter((product) => {
     const stock = totalStock(product);
@@ -248,9 +316,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
     tickets: openTickets,
   };
 
-  const topProducts = useMemo(() => {
+  const computedTopProducts = useMemo(() => {
     const map = new Map<string, { name: string; units: number; revenue: number }>();
-    orders.forEach((o) => o.items.forEach((i) => {
+    orders
+      .filter((o) => o.status === 'completed')
+      .forEach((o) => o.items.forEach((i) => {
       const prev = map.get(i.id) || { name: i.name, units: 0, revenue: 0 };
       prev.units += i.quantity;
       prev.revenue += i.quantity * i.price;
@@ -258,6 +328,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
     }));
     return [...map.values()].sort((a, b) => b.units - a.units).slice(0, 5);
   }, [orders]);
+  const topProducts = summaryTopProducts.length > 0 ? summaryTopProducts : computedTopProducts;
 
   const openCreate = () => {
     setDraft(newProduct());
@@ -745,7 +816,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
                   <div className="text-xs text-yellow-200/60 uppercase tracking-[0.18em]">Orders</div>
                   <ShoppingBag className="h-5 w-5 text-[#facc15]" />
                 </div>
-                <div className="text-3xl font-black">{orders.length}</div>
+                <div className="text-3xl font-black">{totalOrders}</div>
                 <div className="mt-1 text-xs text-yellow-200/60">{pendingOrders} pending</div>
               </div>
               <div className={cardClass}>
@@ -753,7 +824,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
                   <div className="text-xs text-yellow-200/60 uppercase tracking-[0.18em]">Customers</div>
                   <Users className="h-5 w-5 text-[#facc15]" />
                 </div>
-                <div className="text-3xl font-black">{customers.length}</div>
+                <div className="text-3xl font-black">{customersCount}</div>
                 <div className="mt-1 text-xs text-yellow-200/60">Registered users</div>
               </div>
               <div className={cardClass}>
@@ -909,7 +980,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
           <div className={cardClass + ' overflow-x-auto'}>
             <table className="w-full text-sm">
               <thead className="text-yellow-200/70 border-b border-[#facc15]/20"><tr><th className="text-left py-2">Order</th><th className="text-left py-2">Customer</th><th className="text-right py-2">Total</th><th className="text-left py-2">Date</th><th className="text-right py-2">Status</th></tr></thead>
-              <tbody>{orders.map((o) => <tr key={o.id} className="border-b border-[#facc15]/10"><td className="py-2 font-mono text-xs">{o.id}</td><td className="py-2">{usersById.get(o.userId)?.email || o.userId}</td><td className="py-2 text-right">${o.total.toFixed(2)}</td><td className="py-2 text-yellow-200/60">{new Date(o.createdAt).toLocaleString()}</td><td className="py-2 text-right"><select value={o.status} onChange={(e) => { StorageService.updateOrderStatus(o.id, e.target.value as Order['status']); refresh(); }} className={fieldCompactClass}><option value="pending">pending</option><option value="completed">completed</option><option value="refunded">refunded</option><option value="cancelled">cancelled</option></select></td></tr>)}</tbody>
+              <tbody>{orders.map((o) => {
+                const userPayload = (o as unknown as { user?: { email?: string } }).user;
+                const customerLabel = usersById.get(o.userId)?.email || userPayload?.email || o.userId;
+                return <tr key={o.id} className="border-b border-[#facc15]/10"><td className="py-2 font-mono text-xs">{o.id}</td><td className="py-2">{customerLabel}</td><td className="py-2 text-right">${o.total.toFixed(2)}</td><td className="py-2 text-yellow-200/60">{new Date(o.createdAt).toLocaleString()}</td><td className="py-2 text-right"><select value={o.status} onChange={(e) => { const nextStatus = e.target.value as Order['status']; ShopApiService.updateOrderStatus(o.id, nextStatus).then(() => { StorageService.updateOrderStatus(o.id, nextStatus); refresh(); setMessage(`Order ${o.id} updated to ${nextStatus}.`); }).catch(() => { StorageService.updateOrderStatus(o.id, nextStatus); refresh(); setMessage(`Order ${o.id} updated locally. Backend sync failed.`); }); }} className={fieldCompactClass}><option value="pending">pending</option><option value="completed">completed</option><option value="refunded">refunded</option><option value="cancelled">cancelled</option></select></td></tr>;
+              })}</tbody>
             </table>
           </div>
         )}
@@ -927,7 +1002,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
           <div className={cardClass + ' overflow-x-auto'}>
             <table className="w-full text-sm">
               <thead className="text-yellow-200/70 border-b border-[#facc15]/20"><tr><th className="text-left py-2">Email</th><th className="text-left py-2">Joined</th><th className="text-right py-2">Orders</th><th className="text-right py-2">Spent</th></tr></thead>
-              <tbody>{customers.map((c) => { const cs = orders.filter((o) => o.userId === c.id); const spent = cs.reduce((s, o) => s + o.total, 0); return <tr key={c.id} className="border-b border-[#facc15]/10"><td className="py-2">{c.email}</td><td className="py-2 text-yellow-200/60">{new Date(c.createdAt).toLocaleDateString()}</td><td className="py-2 text-right">{cs.length}</td><td className="py-2 text-right">${spent.toFixed(2)}</td></tr>; })}</tbody>
+              <tbody>{customers.map((c) => {
+                const remoteStats = summaryCustomerStats[c.id];
+                const localOrders = orders.filter((o) => o.userId === c.id);
+                const localCompleted = localOrders.filter((o) => o.status === 'completed');
+                const ordersCount = remoteStats?.orders ?? localOrders.length;
+                const spent = remoteStats?.spent ?? localCompleted.reduce((s, o) => s + o.total, 0);
+                return <tr key={c.id} className="border-b border-[#facc15]/10"><td className="py-2">{c.email}</td><td className="py-2 text-yellow-200/60">{new Date(c.createdAt).toLocaleDateString()}</td><td className="py-2 text-right">{ordersCount}</td><td className="py-2 text-right">${spent.toFixed(2)}</td></tr>;
+              })}</tbody>
             </table>
           </div>
         )}

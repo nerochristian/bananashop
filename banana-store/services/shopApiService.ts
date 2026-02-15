@@ -75,6 +75,40 @@ const resolvePath = (path: string): string => {
   return STORE_API_BASE_URL ? `${STORE_API_BASE_URL}${fullPath}` : fullPath;
 };
 
+export interface AdminSummaryCustomer {
+  id: string;
+  email: string;
+  orders: number;
+  totalSpent: number;
+  createdAt: string;
+}
+
+export interface AdminSummaryMetrics {
+  revenue: number;
+  unitsSold: number;
+  pendingOrders: number;
+  completedOrders: number;
+  totalOrders: number;
+  customers: number;
+}
+
+export interface AdminSummaryTopProduct {
+  id: string;
+  name: string;
+  units: number;
+  revenue: number;
+}
+
+export interface AdminSummary {
+  orders: Order[];
+  customers: AdminSummaryCustomer[];
+  metrics: AdminSummaryMetrics;
+  topProducts: AdminSummaryTopProduct[];
+}
+
+export const REQUIRE_API =
+  String(import.meta.env.VITE_REQUIRE_API ?? 'true').trim().toLowerCase() !== 'false';
+
 export const ShopApiService = {
   async health(): Promise<{ ok: boolean; products?: number; orders?: number }> {
     const response = await withTimeout(resolvePath('/health'), {
@@ -107,6 +141,49 @@ export const ShopApiService = {
       card: { enabled: false, automated: true },
       paypal: { enabled: false, automated: false },
       crypto: { enabled: false, automated: false },
+    };
+  },
+
+  async getOrders(params?: { userId?: string; userEmail?: string; status?: Order['status'] }): Promise<Order[]> {
+    const search = new URLSearchParams();
+    if (params?.userId) search.set('userId', params.userId);
+    if (params?.userEmail) search.set('userEmail', params.userEmail);
+    if (params?.status) search.set('status', params.status);
+    const query = search.toString();
+    const path = query ? `/orders?${query}` : '/orders';
+    const response = await withTimeout(resolvePath(path), {
+      method: 'GET',
+      headers: buildHeaders(),
+    });
+    if (!response.ok) throw new Error(`Orders request failed (${response.status})`);
+    const payload = await response.json() as { orders?: Order[] };
+    return Array.isArray(payload.orders) ? payload.orders : [];
+  },
+
+  async getAdminSummary(): Promise<AdminSummary> {
+    const response = await withTimeout(resolvePath('/admin/summary'), {
+      method: 'GET',
+      headers: buildHeaders()
+    });
+    if (!response.ok) throw new Error(`Admin summary request failed (${response.status})`);
+    const payload = await response.json() as {
+      orders?: Order[];
+      customers?: AdminSummaryCustomer[];
+      metrics?: Partial<AdminSummaryMetrics>;
+      topProducts?: AdminSummaryTopProduct[];
+    };
+    return {
+      orders: Array.isArray(payload.orders) ? payload.orders : [],
+      customers: Array.isArray(payload.customers) ? payload.customers : [],
+      metrics: {
+        revenue: Number(payload.metrics?.revenue || 0),
+        unitsSold: Number(payload.metrics?.unitsSold || 0),
+        pendingOrders: Number(payload.metrics?.pendingOrders || 0),
+        completedOrders: Number(payload.metrics?.completedOrders || 0),
+        totalOrders: Number(payload.metrics?.totalOrders || 0),
+        customers: Number(payload.metrics?.customers || 0),
+      },
+      topProducts: Array.isArray(payload.topProducts) ? payload.topProducts : [],
     };
   },
 
@@ -252,5 +329,24 @@ export const ShopApiService = {
       order: payload.order,
       products: payload.products ? payload.products.map(normalizeProduct) : undefined,
     };
+  },
+
+  async updateOrderStatus(orderId: string, status: Order['status']): Promise<{ ok: boolean; order?: Order }> {
+    const response = await withTimeout(resolvePath(`/orders/${encodeURIComponent(orderId)}/status`), {
+      method: 'POST',
+      headers: buildHeaders(),
+      body: JSON.stringify({ status }),
+    });
+    if (!response.ok) {
+      let message = `Update order status failed (${response.status})`;
+      try {
+        const payload = await response.json() as { message?: string };
+        if (payload.message) message = `${payload.message} (${response.status})`;
+      } catch {
+        // Keep generic error message.
+      }
+      throw new Error(message);
+    }
+    return response.json() as Promise<{ ok: boolean; order?: Order }>;
   }
 };

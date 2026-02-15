@@ -4,7 +4,7 @@ import { X, ShieldCheck, Zap, CreditCard, Wallet, Bitcoin, CheckCircle2, ArrowRi
 import { CartItem, Product } from '../types';
 import { Order, StorageService, User } from '../services/storageService';
 import { BotBridgeService } from '../services/botBridgeService';
-import { ShopApiService } from '../services/shopApiService';
+import { REQUIRE_API, ShopApiService } from '../services/shopApiService';
 
 interface CheckoutProps {
   isOpen: boolean;
@@ -120,13 +120,17 @@ export const Checkout: React.FC<CheckoutProps> = ({ isOpen, onClose, items, curr
         };
 
         if (result.products && result.products.length > 0) {
-          StorageService.saveProducts(result.products);
+          if (!REQUIRE_API) {
+            StorageService.saveProducts(result.products);
+          }
           setUpdatedProducts(result.products);
         } else {
           setUpdatedProducts(undefined);
         }
 
-        StorageService.createOrder(finalOrder, false);
+        if (!REQUIRE_API) {
+          StorageService.createOrder(finalOrder, false);
+        }
         BotBridgeService.sendOrder(finalOrder, currentUser, paymentMethod).catch((bridgeError) => {
           console.error('Failed to notify bot about completed order:', bridgeError);
         });

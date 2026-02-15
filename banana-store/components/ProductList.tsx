@@ -12,7 +12,7 @@ export const ProductList: React.FC<ProductListProps> = ({ products, onView, onBu
   return (
     <section id="products" className="pb-40 px-6">
       <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
           {products.map((product, index) => (
             <div key={product.id} className="animate-reveal" style={{ animationDelay: `${index * 100}ms` }}>
               <ProductCard 

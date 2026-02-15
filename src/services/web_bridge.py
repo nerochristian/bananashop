@@ -38,10 +38,14 @@ class WebsiteBridgeServer:
         self.shop_storage_backend = (os.getenv("SHOP_STORAGE_BACKEND") or "auto").strip().lower()
         if self.shop_storage_backend not in {"auto", "supabase", "json"}:
             self.shop_storage_backend = "auto"
+        self.require_supabase_storage = (
+            self.shop_storage_backend == "supabase"
+            or str(os.getenv("SHOP_REQUIRE_SUPABASE", "false")).strip().lower() in {"1", "true", "yes", "on"}
+        )
         self.shop_kv_table = (os.getenv("SHOP_KV_TABLE") or "shop_kv").strip()
         if not re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", self.shop_kv_table):
             self.shop_kv_table = "shop_kv"
-        self.use_supabase_storage = self.shop_storage_backend == "supabase" or (
+        self.use_supabase_storage = self.require_supabase_storage or (
             self.shop_storage_backend == "auto" and bool(self.db_url)
         )
         self.pg_pool: Optional[asyncpg.Pool] = None
@@ -77,7 +81,9 @@ class WebsiteBridgeServer:
         self.app.router.add_get("/shop/health", self.shop_health)
         self.app.router.add_get("/shop/products", self.shop_products)
         self.app.router.add_get("/shop/invoices/{invoice_id}", self.shop_get_invoice)
+        self.app.router.add_get("/shop/orders", self.shop_orders)
         self.app.router.add_get("/shop/payment-methods", self.shop_payment_methods)
+        self.app.router.add_get("/shop/admin/summary", self.shop_admin_summary)
         self.app.router.add_post("/shop/products", self.shop_upsert_product)
         self.app.router.add_delete("/shop/products/{product_id}", self.shop_delete_product)
         self.app.router.add_get("/shop/inventory/{product_id}", self.shop_get_inventory)
@@ -86,6 +92,7 @@ class WebsiteBridgeServer:
         self.app.router.add_post("/shop/payments/create", self.shop_create_payment)
         self.app.router.add_post("/shop/payments/confirm", self.shop_confirm_payment)
         self.app.router.add_post("/shop/buy", self.shop_buy)
+        self.app.router.add_post("/shop/orders/{order_id}/status", self.shop_update_order_status)
 
         self.runner: Optional[web.AppRunner] = None
 
@@ -175,6 +182,9 @@ class WebsiteBridgeServer:
             try:
                 await self._init_supabase_storage()
             except Exception as exc:
+                if self.require_supabase_storage:
+                    logger.critical(f"Supabase shop storage init failed in required mode: {exc}")
+                    raise
                 logger.error(f"Supabase shop storage init failed, falling back to JSON files: {exc}")
                 self.use_supabase_storage = False
 
@@ -240,6 +250,33 @@ class WebsiteBridgeServer:
                 return web.json_response({"ok": True, "invoice": order, "data": order})
         return web.json_response({"ok": False, "message": "invoice not found"}, status=404)
 
+    async def shop_orders(self, request: web.Request):
+        user_id = str(request.query.get("userId", "")).strip()
+        user_email = str(request.query.get("userEmail", "")).strip().lower()
+        status_filter = str(request.query.get("status", "")).strip().lower()
+
+        orders = await self._load_orders()
+        rows: list[dict[str, Any]] = []
+        for order in orders:
+            if not isinstance(order, dict):
+                continue
+            row_status = str(order.get("status") or "pending").strip().lower()
+            if status_filter and row_status != status_filter:
+                continue
+            if user_id and str(order.get("userId") or "").strip() != user_id:
+                continue
+
+            user_payload = order.get("user")
+            user_data = user_payload if isinstance(user_payload, dict) else {}
+            row_email = str(user_data.get("email") or "").strip().lower()
+            if user_email and row_email != user_email:
+                continue
+
+            rows.append(order)
+
+        rows.sort(key=lambda row: str(row.get("createdAt") or ""), reverse=True)
+        return web.json_response({"ok": True, "orders": rows})
+
     async def shop_payment_methods(self, request: web.Request):
         crypto_automated = bool(self.oxapay_merchant_api_key)
         crypto_enabled = crypto_automated or bool(self.crypto_checkout_url)
@@ -249,6 +286,158 @@ class WebsiteBridgeServer:
             "crypto": {"enabled": crypto_enabled, "automated": crypto_automated},
         }
         return web.json_response({"ok": True, "methods": methods})
+
+    async def shop_admin_summary(self, request: web.Request):
+        orders_raw = await self._load_orders()
+        orders: list[dict[str, Any]] = []
+        customer_map: dict[str, dict[str, Any]] = {}
+        top_products: dict[str, dict[str, Any]] = {}
+
+        revenue = 0.0
+        units_sold = 0
+        pending_orders = 0
+        completed_orders = 0
+
+        for order in orders_raw:
+            if not isinstance(order, dict):
+                continue
+
+            status = str(order.get("status") or "pending").strip().lower()
+            if status not in {"completed", "pending", "refunded", "cancelled"}:
+                status = "pending"
+
+            total = self._to_float(order.get("total"), default=0.0) or 0.0
+            created_at = str(order.get("createdAt") or datetime.now(timezone.utc).isoformat())
+            payment_method = str(order.get("paymentMethod") or "").strip()
+            user_id = str(order.get("userId") or "guest").strip() or "guest"
+
+            user_payload = order.get("user")
+            user_data = user_payload if isinstance(user_payload, dict) else {}
+            customer_email = str(user_data.get("email") or "").strip()
+            customer_id = str(user_data.get("id") or user_id).strip() or user_id
+            customer_key = customer_email.lower() or customer_id
+
+            items_raw = order.get("items")
+            items = items_raw if isinstance(items_raw, list) else []
+
+            orders.append(
+                {
+                    "id": str(order.get("id") or ""),
+                    "userId": user_id,
+                    "user": user_data,
+                    "items": items,
+                    "total": total,
+                    "status": status,
+                    "createdAt": created_at,
+                    "paymentMethod": payment_method,
+                }
+            )
+
+            if status == "pending":
+                pending_orders += 1
+            if status == "completed":
+                completed_orders += 1
+                revenue += total
+
+            customer_entry = customer_map.get(customer_key)
+            if customer_entry is None:
+                customer_entry = {
+                    "id": customer_id,
+                    "email": customer_email,
+                    "orders": 0,
+                    "totalSpent": 0.0,
+                    "createdAt": str(user_data.get("createdAt") or created_at),
+                }
+                customer_map[customer_key] = customer_entry
+
+            customer_entry["orders"] = int(customer_entry.get("orders", 0)) + 1
+            if status == "completed":
+                customer_entry["totalSpent"] = float(customer_entry.get("totalSpent", 0.0)) + total
+
+            if status != "completed":
+                continue
+
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                quantity = max(0, self._to_int(item.get("quantity"), default=0) or 0)
+                if quantity <= 0:
+                    continue
+                units_sold += quantity
+
+                item_id = str(item.get("productId") or item.get("id") or "").strip()
+                if item_id and "::" in item_id:
+                    item_id = item_id.split("::", 1)[0].strip()
+                name = str(item.get("name") or item_id or "Unknown Product").strip()
+                item_price = self._to_float(item.get("price"), default=0.0) or 0.0
+
+                bucket_key = item_id or name
+                product_entry = top_products.get(bucket_key)
+                if product_entry is None:
+                    product_entry = {
+                        "id": item_id or name,
+                        "name": name,
+                        "units": 0,
+                        "revenue": 0.0,
+                    }
+                    top_products[bucket_key] = product_entry
+
+                product_entry["units"] = int(product_entry.get("units", 0)) + quantity
+                product_entry["revenue"] = float(product_entry.get("revenue", 0.0)) + (item_price * quantity)
+
+        orders.sort(key=lambda row: str(row.get("createdAt") or ""), reverse=True)
+        customers = list(customer_map.values())
+        customers.sort(key=lambda row: (int(row.get("orders", 0)), float(row.get("totalSpent", 0.0))), reverse=True)
+
+        top_products_rows = list(top_products.values())
+        top_products_rows.sort(key=lambda row: int(row.get("units", 0)), reverse=True)
+
+        return web.json_response(
+            {
+                "ok": True,
+                "orders": orders,
+                "customers": customers,
+                "metrics": {
+                    "revenue": revenue,
+                    "unitsSold": units_sold,
+                    "pendingOrders": pending_orders,
+                    "completedOrders": completed_orders,
+                    "totalOrders": len(orders),
+                    "customers": len(customers),
+                },
+                "topProducts": top_products_rows[:5],
+            }
+        )
+
+    async def shop_update_order_status(self, request: web.Request):
+        order_id = str(request.match_info.get("order_id", "")).strip()
+        if not order_id:
+            return web.json_response({"ok": False, "message": "order id is required"}, status=400)
+
+        payload = await self._safe_json(request)
+        if payload is None:
+            return web.json_response({"ok": False, "message": "invalid json body"}, status=400)
+
+        status = str(payload.get("status") or "").strip().lower()
+        if status not in {"pending", "completed", "refunded", "cancelled"}:
+            return web.json_response({"ok": False, "message": "invalid status"}, status=400)
+
+        orders = await self._load_orders()
+        target: Optional[dict[str, Any]] = None
+        for row in orders:
+            if not isinstance(row, dict):
+                continue
+            if str(row.get("id") or "") != order_id:
+                continue
+            row["status"] = status
+            target = row
+            break
+
+        if target is None:
+            return web.json_response({"ok": False, "message": "order not found"}, status=404)
+
+        await self._save_orders(orders)
+        return web.json_response({"ok": True, "order": target})
 
     async def shop_upsert_product(self, request: web.Request):
         payload = await self._safe_json(request)

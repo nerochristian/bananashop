@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { StorageService, Order, User } from '../services/storageService';
+import { Order, User } from '../services/storageService';
+import { ShopApiService } from '../services/shopApiService';
 import { Package, Key, ExternalLink, Shield, LogOut, LayoutGrid, Fingerprint, Lock, ShieldCheck, Activity } from 'lucide-react';
 
 interface UserDashboardProps {
@@ -56,9 +57,23 @@ const DecryptingInput = ({ value }: { value?: string }) => {
 };
 
 export const UserDashboard: React.FC<UserDashboardProps> = ({ user, onLogout, onBrowse }) => {
-  const orders = StorageService.getUserOrders(user.id)
-    .filter((order) => order.status === 'completed')
-    .reverse();
+  const [orders, setOrders] = useState<Order[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    ShopApiService.getOrders({ userId: user.id, status: 'completed' })
+      .then((rows) => {
+        if (cancelled) return;
+        setOrders(rows);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setOrders([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user.id]);
 
   return (
     <div className="min-h-screen pt-32 pb-40 px-6 max-w-7xl mx-auto relative overflow-hidden">
