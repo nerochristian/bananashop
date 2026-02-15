@@ -1,0 +1,1000 @@
+================================================================================
+                     🌊 WAVE BOOSTS DISCORD BOT - COMPLETE DOCUMENTATION
+                              ULTRA COMPREHENSIVE REFERENCE
+================================================================================
+
+Last Updated: January 2026
+Version: 1.0.0
+Integration: SellAuth API
+
+================================================================================
+                              TABLE OF CONTENTS
+================================================================================
+
+1. OVERVIEW
+2. ALL 38 COMMANDS (DETAILED)
+3. SELLAUTH SERVICE LAYER
+4. DATABASE MODELS
+5. EVENT HANDLERS
+6. COMPONENTS V2 UTILITIES
+7. ENVIRONMENT VARIABLES
+8. PROJECT STRUCTURE
+9. BRANDING & CONFIGURATION
+10. HOW TO USE
+
+================================================================================
+                              1. OVERVIEW
+================================================================================
+
+Wave Boosts is a comprehensive Discord bot designed for:
+- Shop management with SellAuth integration
+- Ticket/support system
+- Order management and tracking
+- Customer support automation
+- Analytics and reporting
+- Marketing tools (coupons, announcements, leaderboards)
+
+Key Features:
+✅ Full SellAuth API integration
+✅ Ticket system with categories
+✅ License key validation
+✅ Coupon management
+✅ Sales analytics
+✅ Stock alerts
+✅ Customer blacklisting
+✅ Webhook management
+✅ Discord Components V2 UI (modern rich messages)
+✅ Auto-transcripts
+✅ Staff management
+
+================================================================================
+                         2. ALL 38 COMMANDS (DETAILED)
+================================================================================
+
+------------------------------------------------------------------------------
+                         🛒 SHOP & PRODUCTS (4 COMMANDS)
+------------------------------------------------------------------------------
+
+/stock [product]
+├── Description: View real-time stock levels
+├── Options:
+│   └── product (optional): Specific product to check
+├── Features:
+│   ├── Shows all products with stock counts
+│   ├── Color-coded status (🟢 >10, 🟡 >0, 🔴 out of stock, ♾️ unlimited)
+│   └── Filters by product name if specified
+└── Permissions: Everyone
+
+/product <name>
+├── Description: View detailed product information
+├── Options:
+│   └── name (required): Product name to look up
+├── Features:
+│   ├── Shows price, description, stock
+│   ├── Product features list
+│   ├── Direct purchase link button
+│   └── Product image if available
+└── Permissions: Everyone
+
+/reviews [product]
+├── Description: Display product reviews and ratings
+├── Options:
+│   └── product (optional): Filter by specific product
+├── Features:
+│   ├── Average star rating
+│   ├── Total review count
+│   ├── Individual review comments
+│   └── Customer names (anonymized)
+└── Permissions: Everyone
+
+/leaderboard
+├── Description: Show top buyers leaderboard
+├── Features:
+│   ├── Top 10 buyers by total spent
+│   ├── Spending tiers with badges:
+│   │   ├── 💎 Diamond: $500+
+│   │   ├── 🥇 Gold: $200+
+│   │   ├── 🥈 Silver: $100+
+│   │   └── 🥉 Bronze: $50+
+│   └── Gamification for customer loyalty
+└── Permissions: Everyone
+
+------------------------------------------------------------------------------
+                        📦 ORDER MANAGEMENT (6 COMMANDS)
+------------------------------------------------------------------------------
+
+/invoice <order_id>
+├── Description: Look up detailed invoice information
+├── Options:
+│   └── order_id (required): Invoice/order ID
+├── Features:
+│   ├── Customer email
+│   ├── Order status (paid, pending, failed)
+│   ├── Products purchased
+│   ├── Total and subtotals
+│   ├── Payment method
+│   ├── Location/country
+│   ├── Refund button
+│   └── Replace button
+├── Permissions: Staff only
+└── Response: Ephemeral (private)
+
+/order <query>
+├── Description: Search orders by ID or customer email
+├── Options:
+│   └── query (required): Order ID or email address
+├── Features:
+│   ├── Lists matching orders (up to 5)
+│   ├── Order status
+│   ├── Products in each order
+│   └── Quick action buttons
+├── Permissions: Staff only
+└── Response: Ephemeral (private)
+
+/replace <order_id>
+├── Description: Auto-replace defective keys/products
+├── Options:
+│   └── order_id (required): Order to replace
+├── Features:
+│   ├── Confirmation prompt before replacing
+│   ├── Automatically generates new keys
+│   ├── Sends new deliverables to customer
+│   └── Logs replacement in system
+├── Permissions: Staff only
+└── Response: Ephemeral (private)
+
+/refund <order_id>
+├── Description: Process a refund with confirmation
+├── Options:
+│   └── order_id (required): Order to refund
+├── Features:
+│   ├── Shows order details before confirming
+│   ├── Confirmation button required
+│   ├── Revokes associated licenses
+│   ├── Notifies customer
+│   └── Logs refund in system
+├── Permissions: Admin only
+└── Response: Ephemeral (private)
+
+/license <key>
+├── Description: Validate a license key
+├── Options:
+│   └── key (required): License key to validate
+├── Features:
+│   ├── Status (active, expired, revoked)
+│   ├── Associated product
+│   ├── Creation date
+│   ├── Expiration date
+│   ├── Usage count
+│   ├── IP locks
+│   ├── HWID locks
+│   ├── Reset license button
+│   └── Revoke button (staff)
+├── Permissions: Everyone
+└── Response: Ephemeral (private)
+
+/redeem <code> <email>
+├── Description: Redeem a voucher code
+├── Options:
+│   ├── code (required): Voucher code
+│   └── email (required): Customer email
+├── Features:
+│   ├── Validates voucher code
+│   ├── Delivers products/keys
+│   ├── Shows delivered items
+│   └── Confirmation message
+├── Permissions: Everyone
+└── Response: Ephemeral (private)
+
+------------------------------------------------------------------------------
+                      📈 MARKETING & ANALYTICS (4 COMMANDS)
+------------------------------------------------------------------------------
+
+/coupon <subcommand>
+├── Subcommands:
+│   ├── create
+│   │   ├── discount (required): Discount amount (1-100)
+│   │   ├── type (required): percentage or fixed
+│   │   ├── code (optional): Custom code or auto-generated
+│   │   └── max_uses (optional): Limit uses
+│   ├── validate <code>
+│   │   └── Shows coupon details and validity
+│   └── list
+│       └── Shows all active coupons
+├── Features:
+│   ├── Auto-generates WAVE-XXXXXX codes
+│   ├── Percentage or fixed discounts
+│   ├── Usage tracking
+│   └── Expiration support
+└── Permissions: Admin only
+
+/announce <message>
+├── Options:
+│   ├── message (required): Announcement content
+│   ├── type (optional): general, promotion, new_product, maintenance, important
+│   ├── channel (optional): Target channel
+│   └── role (optional): Role to mention
+├── Features:
+│   ├── Styled embed with type-specific colors
+│   ├── Optional role ping
+│   ├── Sent to specified or current channel
+│   └── Logged for records
+└── Permissions: Admin only
+
+/analytics [timeframe]
+├── Options:
+│   └── timeframe (optional): 24h, 7d, 30d, all_time
+├── Features:
+│   ├── Total revenue
+│   ├── Order count
+│   ├── Average order value
+│   ├── Conversion rate
+│   ├── Top selling products
+│   ├── Revenue by product
+│   └── Comparison to previous period
+├── Permissions: Admin only
+└── Response: Ephemeral (private)
+
+/stock-alert <subcommand>
+├── Subcommands:
+│   ├── set <product> <threshold>
+│   │   └── Get notified when stock drops below threshold
+│   ├── remove <product>
+│   │   └── Remove an existing alert
+│   ├── list
+│   │   └── Show all configured alerts
+│   └── check
+│       └── Manually check stock against thresholds
+├── Features:
+│   ├── Per-product thresholds
+│   ├── Stored in guild metadata (persists)
+│   ├── Color-coded status display
+│   └── Manual check option
+└── Permissions: Admin only
+
+------------------------------------------------------------------------------
+                        🎫 TICKET MANAGEMENT (16 COMMANDS)
+------------------------------------------------------------------------------
+
+/setup
+├── Description: Auto-configure the bot
+├── Features:
+│   ├── Creates ticket category channel
+│   ├── Creates staff role (if needed)
+│   ├── Creates log channel
+│   ├── Sets up default ticket categories:
+│   │   ├── General Support
+│   │   ├── Purchase Issue
+│   │   ├── Technical Support
+│   │   └── Refund Request
+│   ├── Configures permissions
+│   └── Marks guild as setup complete
+└── Permissions: Admin only
+
+/panel
+├── Description: Post interactive ticket panel
+├── Features:
+│   ├── Beautiful embed with branding
+│   ├── Category selection dropdown
+│   ├── "Open Ticket" button
+│   ├── Website link button
+│   ├── Auto-creates guild config if needed
+│   ├── Auto-creates default categories if none exist
+│   └── Saves panel message ID for updates
+└── Permissions: Manage Channels
+
+/claim
+├── Description: Claim a ticket for yourself
+├── Features:
+│   ├── Assigns ticket to you
+│   ├── Updates ticket status
+│   ├── Sends notification in channel
+│   └── Logs claim event
+└── Permissions: Staff only, in ticket channel
+
+/unclaim
+├── Description: Release a claimed ticket
+├── Features:
+│   ├── Removes your assignment
+│   ├── Ticket becomes available
+│   └── Logs unclaim event
+└── Permissions: Staff only, in ticket channel
+
+/close [reason]
+├── Options:
+│   └── reason (optional): Reason for closing
+├── Features:
+│   ├── Closes the ticket
+│   ├── Generates transcript
+│   ├── Notifies ticket creator
+│   ├── Channel permissions updated
+│   ├── Logs close event with reason
+│   └── Reopen button available
+└── Permissions: Staff only or ticket creator
+
+/reopen
+├── Description: Reopen a closed ticket
+├── Features:
+│   ├── Restores ticket to open status
+│   ├── Restores channel permissions
+│   └── Logs reopen event
+└── Permissions: Staff only
+
+/add <user>
+├── Options:
+│   └── user (required): User to add
+├── Features:
+│   ├── Adds user to ticket channel
+│   ├── Grants view and send permissions
+│   ├── Creates participant record
+│   └── Logs add event
+└── Permissions: Staff only
+
+/remove <user>
+├── Options:
+│   └── user (required): User to remove
+├── Features:
+│   ├── Removes user from ticket channel
+│   ├── Revokes permissions
+│   ├── Removes participant record
+│   └── Logs remove event
+└── Permissions: Staff only
+
+/transfer <staff>
+├── Options:
+│   └── staff (required): Staff member to transfer to
+├── Features:
+│   ├── Transfers ticket ownership
+│   ├── Notifies new assignee
+│   ├── Updates ticket record
+│   └── Logs transfer event
+└── Permissions: Staff only
+
+/priority <level>
+├── Options:
+│   └── level (required): low, medium, high, urgent
+├── Features:
+│   ├── Sets ticket priority
+│   ├── Updates channel name with priority indicator
+│   ├── Color-coded status
+│   └── Logs priority change
+└── Permissions: Staff only
+
+/lock
+├── Description: Lock ticket (prevent messages)
+├── Features:
+│   ├── Disables send messages for non-staff
+│   ├── Useful for investigations
+│   └── Logs lock event
+└── Permissions: Staff only
+
+/unlock
+├── Description: Unlock a locked ticket
+├── Features:
+│   ├── Restores send messages permission
+│   └── Logs unlock event
+└── Permissions: Staff only
+
+/alert
+├── Description: Ping ticket creator about inactivity
+├── Features:
+│   ├── Sends warning message to creator
+│   ├── Rate-limited (once per hour)
+│   └── Logs alert event
+└── Permissions: Staff only
+
+/changecategory <category>
+├── Options:
+│   └── category (required): New category (autocomplete)
+├── Features:
+│   ├── Changes ticket category
+│   ├── Logs category change
+│   └── Autocomplete for existing categories
+└── Permissions: Staff only
+
+/transcript
+├── Description: Generate and save ticket transcript
+├── Features:
+│   ├── Captures all messages
+│   ├── Generates HTML transcript
+│   ├── Uploads to transcript storage
+│   ├── Sends link to user
+│   └── Logs transcript generation
+└── Permissions: Staff only
+
+/delete
+├── Description: Permanently delete ticket channel
+├── Features:
+│   ├── Confirmation required
+│   ├── Deletes channel
+│   ├── Removes database records
+│   └── Cannot be undone
+└── Permissions: Admin only
+
+------------------------------------------------------------------------------
+                         ⚙️ ADMINISTRATION (3 COMMANDS)
+------------------------------------------------------------------------------
+
+/admin <subcommand>
+├── Subcommands:
+│   ├── config
+│   │   └── View current bot configuration
+│   ├── set-log-channel <channel>
+│   │   └── Set the log channel for ticket events
+│   ├── set-staff-role <role>
+│   │   └── Set the staff role
+│   └── allow-multiple <enabled>
+│       └── Allow users to have multiple open tickets
+└── Permissions: Administrator
+
+/blacklist <subcommand>
+├── Subcommands:
+│   ├── add <user> [reason]
+│   │   └── Blacklist a user from creating tickets
+│   ├── remove <user>
+│   │   └── Remove a user from blacklist
+│   └── list
+│       └── Show all blacklisted users
+├── Features:
+│   ├── Blacklisted users cannot create tickets
+│   ├── Stores reason and who added
+│   └── Logs all blacklist actions
+└── Permissions: Manage Guild
+
+/webhook <subcommand>
+├── Subcommands:
+│   ├── test
+│   │   └── Send a test webhook to verify configuration
+│   └── status
+│       └── Check webhook configuration status
+├── Features:
+│   ├── Shows configured shop ID
+│   ├── Shows if API key is set
+│   ├── Shows webhook secret status
+│   └── Lists supported webhook events
+└── Permissions: Admin only
+
+------------------------------------------------------------------------------
+                           🔧 UTILITY (5 COMMANDS)
+------------------------------------------------------------------------------
+
+/help
+├── Description: View all available commands
+├── Features:
+│   ├── Organized by category
+│   ├── Shows command descriptions
+│   └── Beautiful embed design
+└── Permissions: Everyone
+
+/status
+├── Description: Check API status and bot health
+├── Features:
+│   ├── SellAuth API status and latency
+│   ├── Bot uptime
+│   ├── Discord API latency
+│   └── Service health indicators
+└── Permissions: Everyone
+
+/faq [topic]
+├── Options:
+│   └── topic (optional): setup, refunds, delivery, licenses, payment
+├── Features:
+│   ├── Interactive FAQ system
+│   ├── 5 topic categories
+│   ├── 3 Q&A per category
+│   └── Dropdown navigation
+└── Permissions: Everyone
+
+/ping
+├── Description: Check bot latency
+├── Features:
+│   ├── Bot response time
+│   ├── Discord WebSocket ping
+│   └── API latency
+└── Permissions: Everyone
+
+/stats
+├── Description: View server statistics
+├── Features:
+│   ├── Total tickets created
+│   ├── Open tickets count
+│   ├── Closed tickets today
+│   ├── Average response time
+│   └── Staff performance summary
+└── Permissions: Staff only
+
+================================================================================
+                         3. SELLAUTH SERVICE LAYER
+================================================================================
+
+File: apps/bot/src/services/sellauthService.ts
+
+The SellAuthService class provides a complete API client:
+
+CONFIGURATION:
+- Uses SELLAUTH_API_KEY from environment
+- Uses SELLAUTH_SHOP_ID from environment
+- Base URL: SELLAUTH_API_URL or https://api.sellauth.com/v1
+
+PRODUCT METHODS:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ getProducts()           │ Fetch all products                               │
+│ getProduct(id)          │ Get single product by ID                         │
+│ findProductByName(name) │ Search product by name (partial match)           │
+│ getStockLevels()        │ Get stock for all products                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+INVOICE & ORDER METHODS:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ getInvoice(id)          │ Get invoice by ID                                │
+│ getInvoicesByEmail(e)   │ Get all invoices for email                       │
+│ getOrder(id)            │ Get order by ID                                  │
+│ findOrder(query)        │ Search orders by ID or email                     │
+│ refundOrder(invoiceId)  │ Process refund                                   │
+│ replaceProduct(id, pid) │ Replace product in order                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+LICENSE METHODS:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ validateLicense(key)    │ Check license validity                           │
+│ resetLicense(key)       │ Reset license (clear IP/HWID)                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+COUPON METHODS:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ getCoupons()            │ Get all coupons                                  │
+│ getCoupon(code)         │ Get coupon by code                               │
+│ createCoupon(options)   │ Create new coupon                                │
+│ validateCoupon(code)    │ Check if coupon is valid                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+ANALYTICS METHODS:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ getAnalytics(timeframe) │ Get sales analytics                              │
+│ getTopBuyers(limit)     │ Get top buyers leaderboard                       │
+│ getReviews(productId)   │ Get product reviews                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+STATUS & WEBHOOK METHODS:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ getStatus()             │ Check API status                                 │
+│ verifyWebhookSignature()│ Verify incoming webhook                          │
+│ testWebhook()           │ Send test webhook                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+CUSTOMER METHODS:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ blacklistCustomer(e, r) │ Blacklist customer by email                      │
+│ unblacklistCustomer(e)  │ Remove from blacklist                            │
+│ redeemVoucher(code, e)  │ Redeem voucher for customer                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+UTILITY:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ isConfigured()          │ Check if API key is set                          │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+SELLAUTH TYPES DEFINED:
+- SellAuthProduct
+- SellAuthInvoice
+- SellAuthOrder
+- SellAuthLicense
+- SellAuthCoupon
+- SellAuthAnalytics
+- SellAuthReview
+- SellAuthTopBuyer
+- SellAuthStockLevel
+
+================================================================================
+                            4. DATABASE MODELS
+================================================================================
+
+File: packages/db/prisma/schema.prisma
+
+GUILD MODEL:
+├── id (String, PK) - Discord guild ID
+├── setupCompleted (Boolean)
+├── panelChannelId (String?)
+├── panelMessageId (String?)
+├── staffRoleId (String?)
+├── ticketCategoryId (String?)
+├── logChannelId (String?)
+├── allowDmTickets (Boolean)
+├── enableSellAuthIntegration (Boolean)
+├── sellauthShopId (String?)
+├── sellauthApiKey (String?)
+├── sellauthWebhookSecret (String?)
+├── metadata (Json?) - For stock alerts, custom settings
+├── createdAt (DateTime)
+└── updatedAt (DateTime)
+
+CATEGORY MODEL:
+├── id (String, PK)
+├── guildId (String, FK)
+├── name (String)
+├── description (String?)
+├── emoji (String?)
+├── position (Int)
+├── enabled (Boolean)
+├── welcomeMessage (String?)
+├── staffOnly (Boolean)
+├── parentCategory (String?)
+├── createdAt (DateTime)
+└── updatedAt (DateTime)
+
+TICKET MODEL:
+├── id (String, PK)
+├── guildId (String, FK)
+├── categoryId (String, FK)
+├── channelId (String)
+├── creatorId (String)
+├── assigneeId (String?)
+├── number (Int) - Ticket number
+├── status (TicketStatus) - OPEN, IN_PROGRESS, WAITING, ON_HOLD, CLOSED
+├── priority (TicketPriority) - LOW, MEDIUM, HIGH, URGENT
+├── locked (Boolean)
+├── subject (String?)
+├── linkedInvoiceId (String?)
+├── invoiceData (Json?)
+├── closedAt (DateTime?)
+├── closedBy (String?)
+├── closeReason (String?)
+├── firstResponseAt (DateTime?)
+├── metadata (Json?)
+├── createdAt (DateTime)
+└── updatedAt (DateTime)
+
+TICKET_PARTICIPANT MODEL:
+├── id (String, PK)
+├── ticketId (String, FK)
+├── userId (String)
+├── role (String) - creator, assignee, watcher
+├── addedById (String?)
+├── createdAt (DateTime)
+└── updatedAt (DateTime)
+
+TICKET_EVENT MODEL:
+├── id (String, PK)
+├── ticketId (String, FK)
+├── type (String) - CREATED, CLOSED, REOPENED, CLAIMED, etc.
+├── actorId (String)
+├── targetId (String?)
+├── metadata (Json?)
+├── content (String?)
+├── createdAt (DateTime)
+└── updatedAt (DateTime)
+
+BLACKLIST MODEL:
+├── id (String, PK)
+├── guildId (String, FK)
+├── userId (String)
+├── reason (String?)
+├── addedBy (String)
+├── createdAt (DateTime)
+└── updatedAt (DateTime)
+
+TRANSCRIPT MODEL:
+├── id (String, PK)
+├── ticketId (String, FK)
+├── url (String)
+├── messageCount (Int)
+├── createdAt (DateTime)
+└── updatedAt (DateTime)
+
+================================================================================
+                           5. EVENT HANDLERS
+================================================================================
+
+Directory: apps/bot/src/events/
+
+READY EVENT (ready.ts):
+├── Triggered when bot logs in
+├── Sets bot presence/status
+├── Shows "Wave Boosts" status
+└── Logs startup time
+
+GUILD CREATE EVENT (guildCreate.ts):
+├── Triggered when bot joins a server
+├── Sends welcome message
+├── Prompts admin to run /setup
+└── Creates default guild record
+
+GUILD DELETE EVENT (guildDelete.ts):
+├── Triggered when bot is removed
+├── Optional data cleanup
+└── Logs removal
+
+INTERACTION CREATE EVENT (interactionCreate.ts):
+├── Routes slash commands
+├── Routes button clicks
+├── Routes select menus
+├── Routes modal submissions
+├── Routes autocomplete requests
+└── Error handling for all interactions
+
+MESSAGE CREATE EVENT (messageCreate.ts):
+├── Handles DM messages
+├── Provides helpful response for DMs
+├── Directs users to use slash commands
+└── Bot mention response
+
+AUDIT LOG CHECK EVENT (auditLogCheck.ts):
+├── Monitors important actions
+├── Validates permissions
+└── Security logging
+
+================================================================================
+                        6. COMPONENTS V2 UTILITIES
+================================================================================
+
+File: apps/bot/src/utils/componentsV2.ts
+
+EXPORTS:
+├── ContainerBuilder
+├── SectionBuilder
+├── TextDisplayBuilder
+├── SeparatorBuilder
+├── MediaGalleryBuilder
+├── MediaGalleryItemBuilder
+├── ThumbnailBuilder
+└── FileBuilder
+
+COLOR PALETTE (V2_COLORS):
+├── PRIMARY: 0x00FF88 (Brand green)
+├── SUCCESS: 0x57F287 (Green)
+├── WARNING: 0xFEE75C (Yellow)
+├── ERROR: 0xED4245 (Red)
+├── INFO: 0x5865F2 (Blurple)
+└── SECONDARY: 0x99AAB5 (Gray)
+
+SEPARATOR SPACING:
+├── SMALL: 1
+├── MEDIUM: 2
+└── LARGE: 3
+
+HELPER FUNCTIONS:
+├── createContainer(accentColor) - Create styled container
+├── createSection() - Create section builder
+├── createTextDisplay(content) - Create text with markdown
+├── createSeparator(options) - Create divider/spacing
+├── createMediaGallery() - Create image gallery
+├── createMediaItem(url, desc) - Create gallery item
+├── createThumbnail(url, desc) - Create thumbnail
+├── createFile(url) - Create file attachment
+├── buildV2Message(components) - Build message with V2 flag
+├── buildV2Reply(components, opts) - Build reply with V2 flag
+├── createBrandedHeader(title, sub, logo) - Create header section
+├── createStatSection(label, value, emoji) - Create stat display
+├── createInfoBox(text, emoji) - Create info box
+├── createFeatureList(items) - Create bullet list
+├── createGrid(items, cols) - Create grid layout
+├── createProgressBar(current, max, width) - Create progress bar
+└── createEmptyState(msg, icon) - Create empty state message
+
+================================================================================
+                         7. ENVIRONMENT VARIABLES
+================================================================================
+
+File: .env (root directory)
+
+DISCORD CONFIGURATION:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ DISCORD_TOKEN        │ Bot token from Discord Developer Portal             │
+│ DISCORD_CLIENT_ID    │ Application ID                                      │
+│ DISCORD_GUILD_ID     │ (Optional) Guild ID for dev command deployment      │
+│ OWNER_IDS            │ Comma-separated owner Discord IDs                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+DATABASE:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ DATABASE_URL         │ PostgreSQL connection string                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+REDIS (optional):
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ REDIS_URL            │ Redis connection URL                                │
+│ REDIS_PASSWORD       │ Redis password                                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+SELLAUTH INTEGRATION:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ SELLAUTH_API_KEY     │ Your SellAuth API key                               │
+│ SELLAUTH_SHOP_ID     │ Your SellAuth shop ID                               │
+│ SELLAUTH_WEBHOOK_SECRET │ (Optional) Webhook verification secret           │
+│ SELLAUTH_API_URL     │ API URL (default: https://api.sellauth.com/v1)      │
+│ ENABLE_SELLAUTH      │ true/false to enable integration                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+BRANDING:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ BRAND_NAME           │ Bot name (default: Wave Boosts)                     │
+│ BRAND_WEBSITE        │ Your website URL                                    │
+│ BRAND_COLOR          │ Hex color (e.g., 0x00FF88)                          │
+│ BRAND_LOGO_URL       │ URL to logo image                                   │
+│ BRAND_BANNER_URL     │ URL to banner image                                 │
+│ SUPPORT_EMAIL        │ Support email address                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+================================================================================
+                          8. PROJECT STRUCTURE
+================================================================================
+
+snakemarket-tickets/
+├── apps/
+│   ├── bot/
+│   │   ├── src/
+│   │   │   ├── commands/          # 38 slash commands
+│   │   │   │   ├── add.ts
+│   │   │   │   ├── admin.ts
+│   │   │   │   ├── alert.ts
+│   │   │   │   ├── analytics.ts
+│   │   │   │   ├── announce.ts
+│   │   │   │   ├── blacklist.ts
+│   │   │   │   ├── changecategory.ts
+│   │   │   │   ├── claim.ts
+│   │   │   │   ├── close.ts
+│   │   │   │   ├── coupon.ts
+│   │   │   │   ├── delete.ts
+│   │   │   │   ├── faq.ts
+│   │   │   │   ├── help.ts
+│   │   │   │   ├── invoice.ts
+│   │   │   │   ├── leaderboard.ts
+│   │   │   │   ├── license.ts
+│   │   │   │   ├── lock.ts
+│   │   │   │   ├── order.ts
+│   │   │   │   ├── panel.ts
+│   │   │   │   ├── ping.ts
+│   │   │   │   ├── priority.ts
+│   │   │   │   ├── product.ts
+│   │   │   │   ├── redeem.ts
+│   │   │   │   ├── refund.ts
+│   │   │   │   ├── remove.ts
+│   │   │   │   ├── reopen.ts
+│   │   │   │   ├── replace.ts
+│   │   │   │   ├── reviews.ts
+│   │   │   │   ├── setup.ts
+│   │   │   │   ├── stats.ts
+│   │   │   │   ├── status.ts
+│   │   │   │   ├── stock-alert.ts
+│   │   │   │   ├── stock.ts
+│   │   │   │   ├── transcript.ts
+│   │   │   │   ├── transfer.ts
+│   │   │   │   ├── unclaim.ts
+│   │   │   │   ├── unlock.ts
+│   │   │   │   └── webhook.ts
+│   │   │   ├── events/            # Discord event handlers
+│   │   │   │   ├── ready.ts
+│   │   │   │   ├── guildCreate.ts
+│   │   │   │   ├── guildDelete.ts
+│   │   │   │   ├── interactionCreate.ts
+│   │   │   │   ├── messageCreate.ts
+│   │   │   │   └── auditLogCheck.ts
+│   │   │   ├── services/          # API services
+│   │   │   │   ├── sellauthService.ts
+│   │   │   │   └── ticketService.ts
+│   │   │   ├── components/        # Button/modal handlers
+│   │   │   │   ├── buttons/
+│   │   │   │   │   ├── openTicket.ts
+│   │   │   │   │   ├── closeTicket.ts
+│   │   │   │   │   └── claimTicket.ts
+│   │   │   │   └── modals/
+│   │   │   │       ├── closeModal.ts
+│   │   │   │       └── intakeModal.ts
+│   │   │   ├── utils/
+│   │   │   │   └── componentsV2.ts  # Components V2 helpers
+│   │   │   ├── index.ts           # Bot entry point
+│   │   │   ├── env.ts             # Environment config
+│   │   │   └── deploy.ts          # Command deployment
+│   │   ├── package.json
+│   │   └── tsconfig.json
+│   ├── api/                       # (Optional) REST API
+│   └── worker/                    # (Optional) Background worker
+├── packages/
+│   ├── shared/
+│   │   └── src/
+│   │       ├── constants.ts       # Emojis, colors, messages
+│   │       ├── logger.ts          # Winston logger
+│   │       ├── errors.ts          # Custom error classes
+│   │       ├── utils.ts           # Utility functions
+│   │       ├── types.ts           # TypeScript types
+│   │       └── index.ts           # Package exports
+│   └── db/
+│       └── prisma/
+│           └── schema.prisma      # Database schema
+├── package.json                   # Root package.json
+├── pnpm-workspace.yaml            # Workspace config
+├── docker-compose.yml             # PostgreSQL container
+├── start-db.bat                   # Start database script
+├── stop-db.bat                    # Stop database script
+├── setup.txt                      # Setup guide
+└── .env                           # Environment variables
+
+================================================================================
+                       9. BRANDING & CONFIGURATION
+================================================================================
+
+BRANDING OBJECT (from env.ts):
+├── name: "Wave Boosts"
+├── website: Your website URL
+├── color: 0x00FF88 (green)
+├── logoUrl: Logo image URL
+└── bannerUrl: Banner image URL
+
+EMOJIS (from shared/constants.ts):
+├── SUCCESS: ✅
+├── ERROR: ❌
+├── WARNING: ⚠️
+├── INFO: ℹ️
+├── LOADING: ⏳
+├── TICKET: 🎫
+├── LOCK: 🔒
+├── UNLOCK: 🔓
+├── ADMIN: 👤
+├── STATS: 📊
+├── AI: 🤖
+├── CRYPTO: 💲
+├── INVOICE: 🧾
+├── TRANSCRIPT: 📜
+├── RATING: ⭐
+├── TAG: 🏷️
+├── NOTE: 📝
+├── FRAUD: 🚩
+├── SLA: ⏰
+├── HELP: ❓
+├── CATEGORY: 📁
+├── BLACKLIST: 🚫
+├── WAVE_BOOSTS: 🌊
+├── BOOST: 🚀
+├── SHOP: 🛒
+├── STOCK: 📦
+├── COUPON: 🎟️
+├── LEADERBOARD: 🏆
+└── ANALYTICS: 📈
+
+================================================================================
+                           10. HOW TO USE
+================================================================================
+
+INSTALLATION:
+1. Clone repository
+2. Copy .env.example to .env
+3. Fill in environment variables
+4. Run: pnpm install
+5. Run: pnpm db:generate
+6. Run: pnpm db:push
+7. Run: pnpm dev
+
+FIRST TIME SETUP IN DISCORD:
+1. Invite bot to server with proper permissions
+2. Run /setup to configure
+3. Run /panel to post ticket panel
+4. Configure SellAuth API key in .env
+5. Test with /status
+
+PERMISSIONS REQUIRED:
+├── Manage Channels
+├── Manage Roles
+├── Send Messages
+├── Embed Links
+├── Attach Files
+├── Read Message History
+├── Use Slash Commands
+├── View Channels
+└── Manage Messages
+
+RECOMMENDED WORKFLOW:
+1. /setup - Initial configuration
+2. /panel - Post ticket panel in support channel
+3. /admin config - Verify settings
+4. /status - Check API connectivity
+5. /stock - Verify SellAuth integration
+6. /help - Review all commands
+
+================================================================================
+                              END OF DOCUMENTATION
+================================================================================
+
+For support, visit: [Your Website]
+For issues, check: [Your GitHub]
+
+Wave Boosts Bot - Enterprise Shop & Ticket Management

@@ -1,0 +1,91 @@
+[
+  {
+    "id": "ord-1771105255219",
+    "createdAt": "2026-02-14T21:40:55.231645+00:00",
+    "paymentMethod": "paypal",
+    "user": {
+      "id": "admin-1337",
+      "email": "powerpoki7@gmail.com",
+      "password": "Pokemon2020!",
+      "role": "admin",
+      "createdAt": "2026-02-14T21:01:47.505Z"
+    },
+    "items": [
+      {
+        "id": "n-1",
+        "name": "Netflix Premium 4K",
+        "description": "Ultra HD streaming on 4 devices simultaneously. No ads.",
+        "price": 4.99,
+        "originalPrice": 22.99,
+        "duration": "1 Month",
+        "type": "NETFLIX",
+        "features": [
+          "4K Ultra HD",
+          "4 Screens",
+          "Download content",
+          "No Ads"
+        ],
+        "detailedDescription": [],
+        "image": "https://images.unsplash.com/photo-1574375927938-d5a98e8efe30?q=80&w=800&auto=format&fit=crop",
+        "bannerImage": "",
+        "stock": 50,
+        "popular": true,
+        "featured": false,
+        "verified": false,
+        "instantDelivery": false,
+        "quantity": 1
+      }
+    ],
+    "total": 4.99,
+    "status": "completed"
+  },
+  {
+    "id": "ord-1771108526726",
+    "userId": "admin-1337",
+    "createdAt": "2026-02-14T22:41:27.056912+00:00",
+    "paymentMethod": "crypto",
+    "user": {
+      "id": "admin-1337",
+      "email": "powerpoki7@gmail.com",
+      "password": "Pokemon2020!",
+      "role": "admin",
+      "createdAt": "2026-02-14T21:01:47.505Z"
+    },
+    "items": [
+      {
+        "id": "n-1",
+        "name": "Enzo Lifetime",
+        "description": "Ultra HD streaming on 4 devices simultaneously. No ads.",
+        "urlPath": "",
+        "price": 0.1,
+        "originalPrice": 22.99,
+        "duration": "1 week",
+        "type": "OTHER",
+        "features": [
+          "weekly"
+        ],
+        "detailedDescription": [],
+        "image": "https://cdn.discordapp.com/icons/1388303592502333530/9d7828a6890fa9cbd6ce373d295992b3.webp?size=80&quality=lossless",
+        "bannerImage": "https://cdn.discordapp.com/banners/1388303592502333530/f51da5b94a949ddd93ce874a8f58176a.webp?size=480",
+        "category": "",
+        "group": "",
+        "visibility": "public",
+        "hideStockCount": false,
+        "showViewsCount": false,
+        "showSalesCount": false,
+        "liveSalesTimespan": "all_time",
+        "stock": 10,
+        "popular": true,
+        "featured": false,
+        "verified": false,
+        "instantDelivery": false,
+        "quantity": 1
+      }
+    ],
+    "total": 0.1,
+    "status": "completed",
+    "credentials": {
+      "n-1": "ENZO-2YFC4-R3T6H-D3NE8-D3F79"
+    }
+  }
+]

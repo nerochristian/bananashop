@@ -1,0 +1,15 @@
+[Unit]
+Description=Roblox Keys Bot and Website Bridge API
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/bananashop
+EnvironmentFile=/home/ubuntu/bananashop/.env
+ExecStart=/home/ubuntu/bananashop/.venv/bin/python main.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
