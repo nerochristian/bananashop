@@ -4,6 +4,7 @@ import re
 import fnmatch
 import json
 import secrets
+import ssl
 from pathlib import Path
 from datetime import datetime, timezone
 from typing import Any, Optional
@@ -1153,8 +1154,16 @@ class WebsiteBridgeServer:
         if not self.db_url:
             raise RuntimeError("DATABASE_URL or SUPABASE_DATABASE_URL is required for supabase storage")
 
-        normalized_db_url = self._normalize_postgres_dsn_for_asyncpg(self.db_url)
-        self.pg_pool = await asyncpg.create_pool(dsn=normalized_db_url, min_size=1, max_size=5, command_timeout=30)
+        normalized_db_url, ssl_arg = self._normalize_postgres_dsn_for_asyncpg(self.db_url)
+        pool_kwargs: dict[str, Any] = {
+            "dsn": normalized_db_url,
+            "min_size": 1,
+            "max_size": 5,
+            "command_timeout": 30,
+        }
+        if ssl_arg is not None:
+            pool_kwargs["ssl"] = ssl_arg
+        self.pg_pool = await asyncpg.create_pool(**pool_kwargs)
 
         assert self.pg_pool is not None
         async with self.pg_pool.acquire() as conn:
@@ -1269,29 +1278,47 @@ class WebsiteBridgeServer:
         path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
     @staticmethod
-    def _normalize_postgres_dsn_for_asyncpg(db_url: str) -> str:
+    def _normalize_postgres_dsn_for_asyncpg(db_url: str) -> tuple[str, Any]:
         dsn = db_url.strip()
         if dsn.startswith("postgresql://"):
             dsn = "postgres://" + dsn[len("postgresql://") :]
 
         parsed = urlparse(dsn)
         if parsed.scheme != "postgres":
-            return dsn
+            return dsn, None
 
         query = dict(parse_qsl(parsed.query, keep_blank_values=True))
-        sslmode = str(query.get("sslmode", "")).strip().lower()
-        if sslmode:
-            query.pop("sslmode", None)
-            if sslmode in {"require", "verify-ca", "verify-full"}:
-                query["ssl"] = "true"
-            elif sslmode in {"disable", "allow", "prefer"} and "ssl" not in query:
-                query["ssl"] = "false"
+        sslmode = str(query.pop("sslmode", "")).strip().lower()
+        explicit_ssl = str(query.pop("ssl", "")).strip().lower()
+        host = (parsed.hostname or "").lower()
 
-        if "supabase.co" in (parsed.hostname or "") and "ssl" not in query:
-            query["ssl"] = "true"
+        wants_ssl = (
+            sslmode in {"require", "verify-ca", "verify-full"}
+            or explicit_ssl in {"1", "true", "yes", "require", "verify-ca", "verify-full"}
+            or host.endswith(".pooler.supabase.com")
+            or host.endswith(".supabase.co")
+        )
+
+        verify_override = str(os.getenv("DB_SSL_VERIFY", "")).strip().lower()
+        if verify_override in {"1", "true", "yes"}:
+            verify_ssl = True
+        elif verify_override in {"0", "false", "no"}:
+            verify_ssl = False
+        else:
+            verify_ssl = not host.endswith(".pooler.supabase.com")
+
+        ssl_arg = None
+        if wants_ssl:
+            if verify_ssl:
+                ssl_arg = ssl.create_default_context()
+            else:
+                ctx = ssl.create_default_context()
+                ctx.check_hostname = False
+                ctx.verify_mode = ssl.CERT_NONE
+                ssl_arg = ctx
 
         parsed = parsed._replace(query=urlencode(query))
-        return urlunparse(parsed)
+        return urlunparse(parsed), ssl_arg
 
     def _public_product(self, product: dict[str, Any]) -> dict[str, Any]:
         public = dict(product)

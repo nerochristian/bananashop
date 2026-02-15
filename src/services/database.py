@@ -1,7 +1,8 @@
 from tortoise import Tortoise, fields, run_async
 from tortoise.models import Model
 import os
-from urllib.parse import urlparse, urlunparse, parse_qsl, urlencode
+import ssl
+from urllib.parse import urlparse, urlunparse, parse_qsl, urlencode, unquote_plus
 
 class GuildConfig(Model):
     id = fields.CharField(pk=True, max_length=20)
@@ -90,34 +91,104 @@ async def init_db():
         or "sqlite://db.sqlite3"
     )
 
-    # Supabase commonly provides postgresql:// URLs; Tortoise expects postgres://.
+    # Supabase commonly provides postgresql:// URLs; normalize for parsing.
     if db_url.startswith("postgresql://"):
         db_url = "postgres://" + db_url[len("postgresql://") :]
 
-    # Normalize PostgreSQL TLS options for asyncpg/Tortoise:
-    # - asyncpg accepts `ssl`, not `sslmode`.
-    # - Supabase requires TLS.
     if db_url.startswith("postgres://"):
         parsed = urlparse(db_url)
         query = dict(parse_qsl(parsed.query, keep_blank_values=True))
 
-        sslmode = str(query.get("sslmode", "")).strip().lower()
-        if sslmode:
-            query.pop("sslmode", None)
-            if sslmode in {"require", "verify-ca", "verify-full"}:
-                query["ssl"] = "true"
-            elif sslmode in {"disable", "allow", "prefer"} and "ssl" not in query:
-                query["ssl"] = "false"
+        sslmode = str(query.pop("sslmode", "")).strip().lower()
+        explicit_ssl = str(query.pop("ssl", "")).strip().lower()
+        host = (parsed.hostname or "").lower()
 
-        if "supabase.co" in (parsed.hostname or "") and "ssl" not in query:
-            query["ssl"] = "true"
+        wants_ssl = (
+            sslmode in {"require", "verify-ca", "verify-full"}
+            or explicit_ssl in {"1", "true", "yes", "require", "verify-ca", "verify-full"}
+            or host.endswith(".pooler.supabase.com")
+            or host.endswith(".supabase.co")
+        )
 
-        parsed = parsed._replace(query=urlencode(query))
-        db_url = urlunparse(parsed)
+        # Supabase pooler can present cert chains that fail strict validation in some runtimes.
+        # Default to no-verify for pooler hosts unless explicitly overridden.
+        verify_override = str(os.getenv("DB_SSL_VERIFY", "")).strip().lower()
+        if verify_override in {"1", "true", "yes"}:
+            verify_ssl = True
+        elif verify_override in {"0", "false", "no"}:
+            verify_ssl = False
+        else:
+            verify_ssl = not host.endswith(".pooler.supabase.com")
 
-    await Tortoise.init(
-        db_url=db_url,
-        modules={'models': ['src.services.database']}
-    )
+        ssl_arg = None
+        if wants_ssl:
+            if verify_ssl:
+                ssl_arg = ssl.create_default_context()
+            else:
+                ctx = ssl.create_default_context()
+                ctx.check_hostname = False
+                ctx.verify_mode = ssl.CERT_NONE
+                ssl_arg = ctx
+
+        credentials = {
+            "host": parsed.hostname or None,
+            "port": parsed.port or 5432,
+            "user": unquote_plus(parsed.username or "") or None,
+            "password": (
+                unquote_plus(parsed.password or "") if parsed.password is not None else None
+            ),
+            "database": parsed.path[1:] if parsed.path and parsed.path != "/" else None,
+        }
+
+        # Forward safe asyncpg pool/query options from URL.
+        int_keys = {
+            "min_size",
+            "max_size",
+            "max_queries",
+            "timeout",
+            "statement_cache_size",
+            "max_cached_statement_lifetime",
+            "max_cacheable_statement_size",
+        }
+        float_keys = {"max_inactive_connection_lifetime"}
+        for key, raw_value in query.items():
+            if key in int_keys:
+                try:
+                    credentials[key] = int(raw_value)
+                except (TypeError, ValueError):
+                    continue
+            elif key in float_keys:
+                try:
+                    credentials[key] = float(raw_value)
+                except (TypeError, ValueError):
+                    continue
+            elif key == "application_name":
+                # Tortoise maps this to server_settings via `application_name`.
+                credentials["application_name"] = str(raw_value)
+
+        if ssl_arg is not None:
+            credentials["ssl"] = ssl_arg
+
+        await Tortoise.init(
+            config={
+                "connections": {
+                    "default": {
+                        "engine": "tortoise.backends.asyncpg",
+                        "credentials": credentials,
+                    }
+                },
+                "apps": {
+                    "models": {
+                        "models": ["src.services.database"],
+                        "default_connection": "default",
+                    }
+                },
+            }
+        )
+    else:
+        await Tortoise.init(
+            db_url=db_url,
+            modules={'models': ['src.services.database']}
+        )
     await Tortoise.generate_schemas()
 
