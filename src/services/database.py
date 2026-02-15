@@ -86,8 +86,8 @@ class BlockedUser(Model):
 
 async def init_db():
     db_url = (
-        os.getenv("DATABASE_URL")
-        or os.getenv("SUPABASE_DATABASE_URL")
+        os.getenv("SUPABASE_DATABASE_URL")
+        or os.getenv("DATABASE_URL")
         or "sqlite://db.sqlite3"
     )
 

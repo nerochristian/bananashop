@@ -34,7 +34,7 @@ class WebsiteBridgeServer:
         self.events_channel_id = self._env_int("WEBSITE_EVENTS_CHANNEL_ID")
         self.order_channel_id = self._env_int("WEBSITE_ORDER_CHANNEL_ID") or self.events_channel_id
         self.chat_channel_id = self._env_int("WEBSITE_CHAT_CHANNEL_ID") or self.events_channel_id
-        self.db_url = (os.getenv("DATABASE_URL") or os.getenv("SUPABASE_DATABASE_URL") or "").strip()
+        self.db_url = (os.getenv("SUPABASE_DATABASE_URL") or os.getenv("DATABASE_URL") or "").strip()
         self.shop_storage_backend = (os.getenv("SHOP_STORAGE_BACKEND") or "auto").strip().lower()
         if self.shop_storage_backend not in {"auto", "supabase", "json"}:
             self.shop_storage_backend = "auto"
