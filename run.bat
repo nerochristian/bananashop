@@ -4,6 +4,7 @@ setlocal
 cd /d "%~dp0"
 set "START_BOT=1"
 if /i "%~1"=="--web-only" set "START_BOT=0"
+if "%AUTH_SESSION_SECRET%"=="" set "AUTH_SESSION_SECRET=robloxkeys-local-dev-session-secret-change-me"
 
 where node >nul 2>nul
 if errorlevel 1 (

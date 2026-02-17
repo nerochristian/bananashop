@@ -1,7 +1,9 @@
 import asyncio
+import os
 from dotenv import load_dotenv
 
 load_dotenv()
+os.environ.setdefault("AUTH_SESSION_SECRET", "robloxkeys-local-dev-session-secret-change-me")
 
 from src.services.web_bridge import WebsiteBridgeServer
 from src.utils.logger import logger

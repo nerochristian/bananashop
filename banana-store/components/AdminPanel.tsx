@@ -204,6 +204,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
     await ShopApiService.setState(key, value);
   };
 
+  const handleAuthError = (error: unknown): boolean => {
+    const messageText = String(error instanceof Error ? error.message : error || '').toLowerCase();
+    const unauthorized =
+      messageText.includes('(401)') ||
+      messageText.includes('401') ||
+      messageText.includes('unauthorized') ||
+      messageText.includes('forbidden');
+    if (!unauthorized) return false;
+    setMessage('Session expired. Please sign in again.');
+    window.setTimeout(() => onLogout(), 500);
+    return true;
+  };
+
   const appendSecurityLog = async (event: string, status: SecurityLog['status']) => {
     const entry: SecurityLog = {
       id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -300,6 +313,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
       }));
       setSummaryTopProducts(top);
     } catch (error) {
+      if (handleAuthError(error)) return;
       console.error('Failed to refresh admin data from API:', error);
       setSummaryMetrics(null);
       setSummaryTopProducts([]);
@@ -412,6 +426,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
       setDraft((prev) => ({ ...prev, [target]: uploaded.url }));
       setMessage(`Uploaded ${file.name}.`);
     } catch (error) {
+      if (handleAuthError(error)) return;
       console.error('Image upload failed.', error);
       setMessage(error instanceof Error ? error.message : 'Failed to upload image.');
     } finally {
@@ -432,6 +447,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
       setTierDrafts((prev) => prev.map((tier, idx) => (idx === tierIndex ? { ...tier, image: uploaded.url } : tier)));
       setMessage(`Uploaded ${file.name}.`);
     } catch (error) {
+      if (handleAuthError(error)) return;
       console.error('Tier image upload failed.', error);
       setMessage(error instanceof Error ? error.message : 'Failed to upload tier image.');
     } finally {
@@ -513,6 +529,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
         setOpenEditor(false);
       })
       .catch((error) => {
+        if (handleAuthError(error)) return;
         console.error('API upsert failed.', error);
         setMessage(error instanceof Error ? error.message : 'Failed to save product.');
       });
@@ -530,6 +547,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
         setMessage(`Deleted ${product.name}.`);
       })
       .catch((error) => {
+        if (handleAuthError(error)) return;
         console.error('API delete failed.', error);
         setMessage(error instanceof Error ? error.message : `Failed to delete ${product.name}.`);
       });
@@ -550,6 +568,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
         setMessage(`Cloned ${product.name}.`);
       })
       .catch((error) => {
+        if (handleAuthError(error)) return;
         console.error('API clone failed.', error);
         setMessage(error instanceof Error ? error.message : `Failed to clone ${product.name}.`);
       });
@@ -571,6 +590,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
         setMessage(`Updated stock for ${product.name}${suffix} (${delta > 0 ? '+' : ''}${delta}).`);
       })
       .catch((error) => {
+        if (handleAuthError(error)) return;
         console.warn('API stock update failed.', error);
         setMessage(error instanceof Error ? error.message : 'Failed to update stock.');
       });
