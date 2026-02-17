@@ -143,6 +143,8 @@ const fieldCompactClass = 'rounded-xl border border-white/15 bg-[#0f1219]/90 px-
 const primaryButtonClass = 'rounded-xl bg-[#facc15] px-4 py-2.5 font-semibold text-black transition-all hover:-translate-y-0.5 hover:bg-[#eab308] active:scale-[0.98]';
 const subtleButtonClass = 'rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-sm text-white/90 transition-all hover:-translate-y-0.5 hover:bg-white/15 active:scale-[0.98]';
 const mutedPanelClass = 'rounded-xl border border-[#facc15]/15 bg-[#090909]/95';
+const uploadButtonClass = 'h-10 rounded-xl border border-white/15 bg-white/8 px-3 text-sm font-semibold text-white/90 transition-all hover:border-[#facc15]/40 hover:bg-[#facc15]/10';
+const removeButtonClass = 'h-10 rounded-xl border border-[#facc15]/20 bg-[#141414] px-3 text-sm font-semibold text-yellow-100/85 transition-all hover:border-[#facc15]/45 hover:bg-[#1c1c1c] disabled:cursor-not-allowed disabled:opacity-40';
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, settings, setSettings, onLogout }) => {
   const [tab, setTab] = useState<Tab>('dashboard');
@@ -1667,7 +1669,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
                     <div className="space-y-2">
                       <input value={draft.image} onChange={(e) => setDraft({ ...draft, image: e.target.value })} className={fieldClass} placeholder="https://... or upload below" />
                       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                        <label className={`${subtleButtonClass} flex cursor-pointer items-center justify-center`}>
+                        <label className={`${uploadButtonClass} flex cursor-pointer items-center justify-center`}>
                           <input
                             type="file"
                             accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
@@ -1684,7 +1686,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
                           type="button"
                           onClick={() => clearDraftImageField('image')}
                           disabled={!String(draft.image || '').trim()}
-                          className="rounded-xl border border-red-400/35 bg-red-500/10 px-3 py-2 text-sm text-red-200 transition-all hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+                          className={removeButtonClass}
                         >
                           Remove Image
                         </button>
@@ -1696,7 +1698,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
                     <div className="space-y-2">
                       <input value={draft.bannerImage || ''} onChange={(e) => setDraft({ ...draft, bannerImage: e.target.value })} className={fieldClass} placeholder="https://... or upload below" />
                       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                        <label className={`${subtleButtonClass} flex cursor-pointer items-center justify-center`}>
+                        <label className={`${uploadButtonClass} flex cursor-pointer items-center justify-center`}>
                           <input
                             type="file"
                             accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
@@ -1713,7 +1715,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
                           type="button"
                           onClick={() => clearDraftImageField('bannerImage')}
                           disabled={!String(draft.bannerImage || '').trim()}
-                          className="rounded-xl border border-red-400/35 bg-red-500/10 px-3 py-2 text-sm text-red-200 transition-all hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+                          className={removeButtonClass}
                         >
                           Remove Banner
                         </button>
@@ -1819,7 +1821,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
                         className={`${fieldCompactClass} md:col-span-6`}
                         placeholder="Tier image URL (optional)"
                       />
-                      <label className={`${subtleButtonClass} cursor-pointer text-center md:col-span-2`}>
+                      <label className={`${uploadButtonClass} flex cursor-pointer items-center justify-center text-center md:col-span-2`}>
                         <input
                           type="file"
                           accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
@@ -1836,7 +1838,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
                         type="button"
                         onClick={() => clearTierImage(idx)}
                         disabled={!String(tier.image || '').trim()}
-                        className="rounded-xl border border-red-400/35 bg-red-500/10 px-3 py-2 text-xs text-red-200 transition-all hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-40 md:col-span-1"
+                        className={`${removeButtonClass} text-xs md:col-span-1`}
                       >
                         Remove Image
                       </button>
