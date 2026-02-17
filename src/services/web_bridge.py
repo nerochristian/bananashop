@@ -1602,22 +1602,24 @@ class WebsiteBridgeServer:
           transparent 36px
         ),
         #050505;
-      padding: 0;
+      padding: 28px 14px;
       min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }}
     .mail-wrap {{
       width: 100%;
-      max-width: none;
+      max-width: 1280px;
       margin: 0 auto;
-      padding: 0;
-      min-height: 100vh;
+      padding: 0 18px;
     }}
     .mail-card {{
       width: 100%;
-      max-width: none;
+      max-width: 1080px;
       margin: 0 auto;
-      min-height: 100vh;
-      border-radius: 0;
+      min-height: auto;
+      border-radius: 22px;
       border: 1px solid rgba(250, 204, 21, 0.25);
       background: linear-gradient(180deg, #0a0a0a 0%, #070707 100%);
       box-shadow:
@@ -1719,11 +1721,11 @@ class WebsiteBridgeServer:
         padding-right: 18px;
       }}
       .mail-wrap {{
-        padding: 0;
+        padding: 0 2px;
       }}
       .mail-card {{
-        min-height: 100vh;
-        border-radius: 0;
+        min-height: auto;
+        border-radius: 16px;
       }}
       .otp-code {{
         font-size: 31px;
