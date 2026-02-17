@@ -54,7 +54,26 @@ class WebsiteBridgeServer:
         self.discord_oauth_client_id = (os.getenv("DISCORD_OAUTH_CLIENT_ID") or "").strip()
         self.discord_oauth_client_secret = (os.getenv("DISCORD_OAUTH_CLIENT_SECRET") or "").strip()
         self.discord_oauth_redirect_uri = (os.getenv("DISCORD_OAUTH_REDIRECT_URI") or "").strip()
-        self.discord_oauth_scopes = (os.getenv("DISCORD_OAUTH_SCOPES") or "identify email").strip() or "identify email"
+        self.discord_auto_join_guild = self._env_bool("DISCORD_AUTO_JOIN_GUILD", default=True)
+        self.discord_join_guild_id = (os.getenv("DISCORD_GUILD_ID") or "").strip()
+        if self.discord_join_guild_id and not self.discord_join_guild_id.isdigit():
+            self.discord_join_guild_id = ""
+        self.discord_bot_token = (os.getenv("DISCORD_TOKEN") or "").strip()
+        raw_discord_scopes = (os.getenv("DISCORD_OAUTH_SCOPES") or "identify email").strip() or "identify email"
+        scope_parts = [part.strip() for part in raw_discord_scopes.replace(",", " ").split(" ") if part.strip()]
+        normalized_scopes: list[str] = []
+        for part in scope_parts:
+            if part not in normalized_scopes:
+                normalized_scopes.append(part)
+        if "identify" not in normalized_scopes:
+            normalized_scopes.append("identify")
+        if (
+            self.discord_auto_join_guild
+            and self.discord_join_guild_id
+            and "guilds.join" not in normalized_scopes
+        ):
+            normalized_scopes.append("guilds.join")
+        self.discord_oauth_scopes = " ".join(normalized_scopes) if normalized_scopes else "identify email"
         self.discord_oauth_authorize_url = "https://discord.com/oauth2/authorize"
         self.discord_oauth_token_url = "https://discord.com/api/oauth2/token"
         self.discord_oauth_me_url = "https://discord.com/api/users/@me"
@@ -688,8 +707,8 @@ class WebsiteBridgeServer:
                 )
             )
 
-        discord_user = await self._fetch_discord_oauth_user(code)
-        if not isinstance(discord_user, dict):
+        discord_identity = await self._fetch_discord_oauth_identity(code)
+        if not isinstance(discord_identity, dict):
             await self._append_security_log("Discord OAuth user fetch failed", "WARNING")
             raise web.HTTPFound(
                 self._append_query_params(
@@ -700,6 +719,19 @@ class WebsiteBridgeServer:
                     },
                 )
             )
+
+        discord_user = discord_identity.get("user")
+        if not isinstance(discord_user, dict):
+            raise web.HTTPFound(
+                self._append_query_params(
+                    return_url,
+                    {
+                        "discord": "error",
+                        "message": "discord_profile_invalid",
+                    },
+                )
+            )
+        discord_access_token = str(discord_identity.get("accessToken") or "").strip()
 
         discord_id = str(discord_user.get("id") or "").strip()
         if not discord_id:
@@ -765,11 +797,17 @@ class WebsiteBridgeServer:
         target_user["discordAvatar"] = avatar_url
         target_user["discordLinkedAt"] = datetime.now(timezone.utc).isoformat()
         await self._save_state("users", users)
+        guild_joined = await self._try_auto_join_discord_guild(discord_id, discord_access_token)
         self.discord_link_tokens.pop(link_token, None)
         await self._append_security_log(
             f"Discord linked for {str(target_user.get('email') or '').strip().lower()} ({discord_id})",
             "SUCCESS",
         )
+        if self._can_auto_join_discord_guild():
+            await self._append_security_log(
+                f"Discord guild auto-join {'succeeded' if guild_joined else 'failed'} for {str(target_user.get('email') or '').strip().lower()}",
+                "SUCCESS" if guild_joined else "WARNING",
+            )
 
         raise web.HTTPFound(
             self._append_query_params(
@@ -779,6 +817,7 @@ class WebsiteBridgeServer:
                     "discordId": discord_id,
                     "discordUsername": username,
                     "discordAvatar": avatar_url,
+                    "guildJoined": "1" if guild_joined else "0",
                     "email": str(target_user.get("email") or "").strip().lower(),
                 },
             )
@@ -2742,7 +2781,7 @@ class WebsiteBridgeServer:
         merged_query = urlencode(existing)
         return urlunparse((parsed.scheme, parsed.netloc, parsed.path, parsed.params, merged_query, parsed.fragment))
 
-    async def _fetch_discord_oauth_user(self, code: str) -> Optional[dict[str, Any]]:
+    async def _fetch_discord_oauth_identity(self, code: str) -> Optional[dict[str, Any]]:
         if not self._is_discord_oauth_ready():
             return None
 
@@ -2793,11 +2832,50 @@ class WebsiteBridgeServer:
                     except Exception:
                         return None
                     if isinstance(payload, dict):
-                        return payload
+                        return {
+                            "user": payload,
+                            "accessToken": access_token,
+                        }
                     return None
         except Exception as exc:
             logger.error(f"Discord OAuth flow failed: {exc}")
             return None
+
+    def _can_auto_join_discord_guild(self) -> bool:
+        return bool(
+            self.discord_auto_join_guild
+            and self.discord_join_guild_id
+            and self.discord_bot_token
+        )
+
+    async def _try_auto_join_discord_guild(self, discord_user_id: str, user_access_token: str) -> bool:
+        if not self._can_auto_join_discord_guild():
+            return False
+        if not discord_user_id or not user_access_token:
+            return False
+
+        endpoint = f"https://discord.com/api/v10/guilds/{self.discord_join_guild_id}/members/{discord_user_id}"
+        timeout = ClientTimeout(total=15)
+        try:
+            async with ClientSession(timeout=timeout) as session:
+                async with session.put(
+                    endpoint,
+                    headers={
+                        "Authorization": f"Bot {self.discord_bot_token}",
+                        "Content-Type": "application/json",
+                    },
+                    json={"access_token": user_access_token},
+                ) as response:
+                    response_text = await response.text()
+                    if response.status in {200, 201, 204}:
+                        return True
+                    logger.warning(
+                        f"Discord guild auto-join failed: status={response.status} response={response_text}"
+                    )
+                    return False
+        except Exception as exc:
+            logger.warning(f"Discord guild auto-join request failed: {exc}")
+            return False
 
     async def _append_security_log(self, event: str, status: str) -> None:
         logs = await self._load_state("logs")

@@ -72,8 +72,10 @@ const DecryptingInput = ({ value }: { value?: string }) => {
 export const UserDashboard: React.FC<UserDashboardProps> = ({ user, onLogout, onBrowse, onUserUpdate }) => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [isDiscordConnecting, setIsDiscordConnecting] = useState(false);
+  const [isDiscordDisconnecting, setIsDiscordDisconnecting] = useState(false);
   const [discordActionError, setDiscordActionError] = useState('');
   const [isDiscordPromptOpen, setIsDiscordPromptOpen] = useState(false);
+  const [isDiscordStatusOpen, setIsDiscordStatusOpen] = useState(false);
 
   const discordLinked = Boolean((user.discordId || '').trim());
 
@@ -144,6 +146,14 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ user, onLogout, on
     }
   }, [discordLinked]);
 
+  const handleDiscordButtonClick = async () => {
+    if (discordLinked) {
+      setIsDiscordStatusOpen(true);
+      return;
+    }
+    await startDiscordConnect();
+  };
+
   const startDiscordConnect = async () => {
     if (isDiscordConnecting || discordLinked) return;
 
@@ -157,6 +167,21 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ user, onLogout, on
     } catch (connectError) {
       setDiscordActionError(connectError instanceof Error ? connectError.message : 'Failed to start Discord connect');
       setIsDiscordConnecting(false);
+    }
+  };
+
+  const disconnectDiscord = async () => {
+    if (!discordLinked || isDiscordDisconnecting) return;
+    setDiscordActionError('');
+    setIsDiscordDisconnecting(true);
+    try {
+      const updatedUser = await ShopApiService.authDiscordUnlink(user.id, user.email);
+      onUserUpdate(updatedUser);
+      setIsDiscordStatusOpen(false);
+    } catch (disconnectError) {
+      setDiscordActionError(disconnectError instanceof Error ? disconnectError.message : 'Failed to disconnect Discord');
+    } finally {
+      setIsDiscordDisconnecting(false);
     }
   };
 
@@ -188,11 +213,11 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ user, onLogout, on
           </button>
 
           <button
-            onClick={startDiscordConnect}
-            disabled={isDiscordConnecting || discordLinked}
+            onClick={handleDiscordButtonClick}
+            disabled={isDiscordConnecting}
             className={`flex items-center justify-center gap-2 rounded-2xl border px-5 py-3 text-[10px] font-black uppercase tracking-widest transition-all sm:px-6 sm:py-4 ${
               discordLinked
-                ? 'cursor-default border-[#5865F2]/45 bg-[#5865F2]/30 text-white'
+                ? 'border-[#5865F2]/45 bg-[#5865F2]/30 text-white hover:bg-[#5865F2]/40'
                 : 'border-[#5865F2]/35 bg-[#5865F2]/20 text-[#D6DCFF] hover:bg-[#5865F2]/35 disabled:cursor-not-allowed disabled:opacity-70'
             }`}
           >
@@ -337,6 +362,52 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ user, onLogout, on
                 {isDiscordConnecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <DiscordGlyph className="h-4 w-4" />}
                 {isDiscordConnecting ? 'Connecting...' : 'Connect Discord'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isDiscordStatusOpen && discordLinked && (
+        <div className="fixed inset-0 z-[121] flex items-center justify-center bg-black/75 px-4 backdrop-blur-md">
+          <div className="w-full max-w-md overflow-hidden rounded-[28px] border border-[#5865F2]/35 bg-[#0A1022] shadow-2xl">
+            <div className="border-b border-white/10 bg-[#5865F2]/15 px-6 py-5">
+              <div className="inline-flex items-center gap-2 rounded-full border border-[#5865F2]/45 bg-[#5865F2]/25 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-[#D8DEFF]">
+                <DiscordGlyph className="h-3.5 w-3.5" />
+                Connected
+              </div>
+              <h3 className="mt-3 text-2xl font-black tracking-tight text-white">Discord Linked</h3>
+              <p className="mt-2 text-sm font-semibold text-white/75">
+                Your vault account is connected to Discord and ready for linked features.
+              </p>
+            </div>
+
+            <div className="px-6 py-5">
+              <div className="space-y-2 rounded-2xl border border-white/10 bg-black/30 p-4">
+                <p className="text-[10px] font-black uppercase tracking-widest text-white/45">Discord User</p>
+                <p className="truncate text-sm font-black text-white">{user.discordUsername || 'Unknown User'}</p>
+                <p className="truncate text-xs font-semibold text-white/55">{user.discordId || 'No ID'}</p>
+              </div>
+            </div>
+
+            <div className="border-t border-white/10 bg-black/20 px-6 py-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => setIsDiscordStatusOpen(false)}
+                  className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-white/70 transition-all hover:bg-white/10 sm:w-auto"
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  onClick={disconnectDiscord}
+                  disabled={isDiscordDisconnecting}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-500/25 bg-red-500/15 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-red-300 transition-all hover:bg-red-500/25 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
+                >
+                  {isDiscordDisconnecting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  {isDiscordDisconnecting ? 'Disconnecting...' : 'Disconnect'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
