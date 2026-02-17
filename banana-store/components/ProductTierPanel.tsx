@@ -72,7 +72,7 @@ export const ProductTierPanel: React.FC<ProductTierPanelProps> = ({
   const activeTierId = hoveredTierId || selectedTierId;
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-8">
+    <div className="fixed inset-0 z-[120] flex items-end justify-center p-2 sm:items-center sm:p-8">
       <div
         className={`absolute inset-0 bg-black/85 [backdrop-filter:blur(0px)] [-webkit-backdrop-filter:blur(0px)] ${
           isClosing
@@ -83,7 +83,7 @@ export const ProductTierPanel: React.FC<ProductTierPanelProps> = ({
       />
 
       <div
-        className={`relative w-full max-w-5xl overflow-hidden rounded-[26px] border border-white/10 bg-[#070a12] shadow-[0_40px_100px_rgba(0,0,0,0.72)] will-change-transform ${
+        className={`relative w-full max-w-5xl overflow-hidden rounded-[22px] border border-white/10 bg-[#070a12] shadow-[0_40px_100px_rgba(0,0,0,0.72)] will-change-transform sm:rounded-[26px] ${
           isClosing
             ? 'animate-[tierPanelOut_420ms_cubic-bezier(0.4,0,0.2,1)_forwards]'
             : 'opacity-0 translate-y-12 animate-[tierPanelIn_700ms_cubic-bezier(0.16,1,0.3,1)_80ms_forwards]'
@@ -91,9 +91,9 @@ export const ProductTierPanel: React.FC<ProductTierPanelProps> = ({
       >
         <div className="pointer-events-none absolute -top-24 left-1/2 h-64 w-[80%] -translate-x-1/2 bg-yellow-500/10 blur-[100px]" />
 
-        <div className="relative flex items-center justify-between border-b border-white/10 bg-gradient-to-b from-white/[0.03] to-transparent px-5 py-4 sm:px-7">
+        <div className="relative flex items-center justify-between border-b border-white/10 bg-gradient-to-b from-white/[0.03] to-transparent px-4 py-4 sm:px-7">
           <div>
-            <h2 className="text-3xl font-black tracking-tight text-white">{panelTitle}</h2>
+            <h2 className="text-2xl font-black tracking-tight text-white sm:text-3xl">{panelTitle}</h2>
             <p className="mt-1 text-[10px] font-black uppercase tracking-[0.18em] text-yellow-200/70">
               Select your tier
             </p>
@@ -106,7 +106,7 @@ export const ProductTierPanel: React.FC<ProductTierPanelProps> = ({
           </button>
         </div>
 
-        <div className="relative max-h-[65vh] space-y-3 overflow-y-auto p-4 sm:p-6">
+        <div className="relative max-h-[74vh] space-y-3 overflow-y-auto p-3 sm:max-h-[65vh] sm:p-6">
           {tiers.map((tier, index) => {
             const inStock = Number(tier.stock || 0) > 0;
             const isSelected = activeTierId === tier.id;
@@ -130,7 +130,7 @@ export const ProductTierPanel: React.FC<ProductTierPanelProps> = ({
                     '--tier-glow-y': `${tierGlowPosition[tier.id]?.y ?? 56}px`,
                   } as React.CSSProperties
                 }
-                className={`group relative w-full overflow-hidden rounded-2xl border p-3 text-left transition duration-300 focus:outline-none ${
+                className={`group relative w-full overflow-hidden rounded-2xl border p-2.5 text-left transition duration-300 focus:outline-none sm:p-3 ${
                   isSelected
                     ? 'border-[#facc15]/80 bg-[#11140c] shadow-[0_0_30px_rgba(250,204,21,0.2)]'
                     : 'border-white/10 bg-[#0d1118] hover:border-white/25 hover:bg-[#101522]'
@@ -147,43 +147,47 @@ export const ProductTierPanel: React.FC<ProductTierPanelProps> = ({
                 />
                 <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(250,204,21,0.0)_0%,rgba(250,204,21,0.08)_35%,rgba(250,204,21,0.0)_70%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
 
-                <div className="relative flex items-center gap-4">
-                  <div className="relative h-20 w-28 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-black">
-                    <img
-                      src={tier.image || product.image}
-                      alt={tier.name}
-                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = 'https://api.dicebear.com/7.x/initials/svg?seed=' + tier.name;
-                      }}
-                    />
-                    <div className="absolute left-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-black/70 text-xs font-black text-white">
-                      {index + 1}
+                <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-4">
+                  <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
+                    <div className="relative h-20 w-28 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-black sm:h-20 sm:w-28">
+                      <img
+                        src={tier.image || product.image}
+                        alt={tier.name}
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://api.dicebear.com/7.x/initials/svg?seed=' + tier.name;
+                        }}
+                      />
+                      <div className="absolute left-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-black/70 text-xs font-black text-white">
+                        {index + 1}
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-2xl font-black tracking-tight text-white">{tier.name}</p>
-                    <div className="mt-1 flex flex-wrap items-center gap-2">
-                      <span className={`inline-flex rounded-full border px-3 py-1 text-sm font-black ${stockChipClass}`}>
-                        {inStock ? `${Number(tier.stock || 0)} in stock` : 'Out of stock'}
-                      </span>
-                      {(tier.duration || product.duration) && (
-                        <span className="inline-flex rounded-full border border-white/15 bg-white/[0.04] px-3 py-1 text-sm font-black uppercase tracking-[0.08em] text-white/70">
-                          {tier.duration || product.duration}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xl font-black tracking-tight text-white sm:text-2xl">{tier.name}</p>
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                        <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black sm:text-sm ${stockChipClass}`}>
+                          {inStock ? `${Number(tier.stock || 0)} in stock` : 'Out of stock'}
                         </span>
+                        {(tier.duration || product.duration) && (
+                          <span className="inline-flex rounded-full border border-white/15 bg-white/[0.04] px-3 py-1 text-xs font-black uppercase tracking-[0.08em] text-white/70 sm:text-sm">
+                            {tier.duration || product.duration}
+                          </span>
+                        )}
+                      </div>
+                      {tier.description && (
+                        <p className="mt-2 line-clamp-1 text-xs font-semibold text-white/50">{tier.description}</p>
                       )}
                     </div>
-                    {tier.description && (
-                      <p className="mt-2 line-clamp-1 text-xs font-semibold text-white/50">{tier.description}</p>
-                    )}
                   </div>
 
-                  <div className="flex shrink-0 items-center gap-3">
-                    <p className="text-3xl font-black tracking-tight text-[#facc15]">${Number(tier.price || 0).toFixed(2)}</p>
-                    {!!Number(tier.originalPrice || 0) && Number(tier.originalPrice || 0) > Number(tier.price || 0) && (
-                      <p className="text-sm font-black text-white/35 line-through">${Number(tier.originalPrice || 0).toFixed(2)}</p>
-                    )}
+                  <div className="flex w-full items-center justify-between sm:w-auto sm:shrink-0 sm:justify-end sm:gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <p className="text-4xl font-black tracking-tight text-[#facc15] sm:text-3xl">${Number(tier.price || 0).toFixed(2)}</p>
+                      {!!Number(tier.originalPrice || 0) && Number(tier.originalPrice || 0) > Number(tier.price || 0) && (
+                        <p className="text-base font-black text-white/35 line-through sm:text-sm">${Number(tier.originalPrice || 0).toFixed(2)}</p>
+                      )}
+                    </div>
                     <span className="rounded-xl border border-white/20 bg-white/5 p-2 text-white/70 transition group-hover:border-[#facc15]/40 group-hover:text-[#facc15]">
                       <ChevronRight className="h-5 w-5" />
                     </span>

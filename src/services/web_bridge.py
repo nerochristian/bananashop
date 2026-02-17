@@ -1602,10 +1602,16 @@ class WebsiteBridgeServer:
           transparent 36px
         ),
         #050505;
-      padding: 28px 14px;
+      padding: 30px 0;
+    }}
+    .mail-wrap {{
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 0 18px;
     }}
     .mail-card {{
-      max-width: 680px;
+      width: 100%;
+      max-width: 1080px;
       margin: 0 auto;
       border-radius: 22px;
       border: 1px solid rgba(250, 204, 21, 0.25);
@@ -1616,7 +1622,7 @@ class WebsiteBridgeServer:
       overflow: hidden;
     }}
     .mail-header {{
-      padding: 26px 28px 16px;
+      padding: 30px 34px 20px;
       border-bottom: 1px solid rgba(250, 204, 21, 0.18);
       background: linear-gradient(120deg, rgba(250, 204, 21, 0.2), rgba(0, 0, 0, 0));
     }}
@@ -1633,7 +1639,7 @@ class WebsiteBridgeServer:
       text-transform: uppercase;
     }}
     .mail-body {{
-      padding: 22px 28px 28px;
+      padding: 28px 34px 34px;
       color: #f8f8f8;
     }}
     .mail-footer {{
@@ -1663,7 +1669,7 @@ class WebsiteBridgeServer:
       border: 1px solid rgba(250, 204, 21, 0.35);
       background: #0a0a0a;
       color: #facc15;
-      font-size: 38px;
+      font-size: 46px;
       line-height: 1.15;
       letter-spacing: 0.28em;
       font-weight: 900;
@@ -1708,6 +1714,9 @@ class WebsiteBridgeServer:
         padding-left: 18px;
         padding-right: 18px;
       }}
+      .mail-wrap {{
+        padding: 0 10px;
+      }}
       .otp-code {{
         font-size: 31px;
         letter-spacing: 0.2em;
@@ -1718,12 +1727,14 @@ class WebsiteBridgeServer:
 <body>
   <div style="display:none;visibility:hidden;opacity:0;height:0;width:0;overflow:hidden;mso-hide:all;">{preheader_text}</div>
   <div class="mail-bg">
-    <div class="mail-card">
-      <div class="mail-header">
-        <span class="brand-chip">{brand_name}</span>
-      </div>
-      <div class="mail-body">
-        {body_html}
+    <div class="mail-wrap">
+      <div class="mail-card">
+        <div class="mail-header">
+          <span class="brand-chip">{brand_name}</span>
+        </div>
+        <div class="mail-body">
+          {body_html}
+        </div>
       </div>
     </div>
   </div>
@@ -1735,7 +1746,7 @@ class WebsiteBridgeServer:
         safe_code = self._email_escape(otp_code)
         safe_minutes = self._email_escape(ttl_minutes)
         content = f"""
-<h1 style="margin:0;font-size:34px;line-height:1.1;letter-spacing:-0.02em;">Welcome Back</h1>
+<h1 style="margin:0;font-size:44px;line-height:1.02;letter-spacing:-0.02em;">Welcome Back</h1>
 <p class="muted" style="margin:10px 0 0;font-size:14px;">
   Use this one-time code to verify your sign in to <span class="accent">{safe_brand}</span>.
 </p>
@@ -1803,7 +1814,7 @@ class WebsiteBridgeServer:
             creds_html = '<div class="muted" style="font-size:13px;">No credentials attached.</div>'
 
         content = f"""
-<h1 style="margin:0;font-size:32px;line-height:1.1;letter-spacing:-0.02em;">Order Confirmed</h1>
+<h1 style="margin:0;font-size:42px;line-height:1.02;letter-spacing:-0.02em;">Order Confirmed</h1>
 <p class="muted" style="margin:10px 0 0;font-size:14px;">
   Thanks for shopping with <span class="accent">{safe_brand}</span>. Your digital order is now delivered.
 </p>

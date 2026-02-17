@@ -3,7 +3,7 @@ import { BRAND_CONFIG } from '../config/brandConfig';
 
 export const Hero: React.FC = () => {
   return (
-    <div className="relative pt-52 pb-24 animate-reveal">
+    <div className="relative pt-32 pb-16 animate-reveal sm:pt-44 sm:pb-20 md:pt-52 md:pb-24">
       {BRAND_CONFIG.assets.bannerUrl && (
         <div className="absolute inset-0 opacity-20 pointer-events-none">
           <img
@@ -13,12 +13,12 @@ export const Hero: React.FC = () => {
           />
         </div>
       )}
-      <div className="relative z-10 max-w-4xl mx-auto px-4 text-center">
-        <h1 className="text-7xl md:text-8xl font-black tracking-tighter mb-8 brand-gradient-text">
+      <div className="relative z-10 mx-auto max-w-4xl px-4 text-center">
+        <h1 className="mb-6 text-5xl font-black tracking-tighter brand-gradient-text sm:text-7xl md:mb-8 md:text-8xl">
           {BRAND_CONFIG.identity.storeName}
         </h1>
         
-        <p className="max-w-2xl mx-auto text-sm md:text-base font-medium text-white/40 leading-relaxed uppercase tracking-[0.2em] animate-slide-up [animation-delay:200ms]">
+        <p className="mx-auto max-w-2xl text-xs font-medium uppercase leading-relaxed tracking-[0.14em] text-white/45 animate-slide-up sm:text-sm sm:tracking-[0.2em] md:text-base [animation-delay:200ms]">
           {BRAND_CONFIG.copy.heroTagline}
         </p>
       </div>

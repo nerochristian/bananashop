@@ -10,9 +10,9 @@ interface ProductListProps {
 
 export const ProductList: React.FC<ProductListProps> = ({ products, onView, onBuyNow }) => {
   return (
-    <section id="products" className="pb-40 px-6">
+    <section id="products" className="px-4 pb-24 sm:px-6 sm:pb-40">
       <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5 sm:gap-8 lg:grid-cols-2">
           {products.map((product, index) => (
             <div key={product.id} className="animate-reveal" style={{ animationDelay: `${index * 100}ms` }}>
               <ProductCard 

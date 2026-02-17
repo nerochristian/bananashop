@@ -45,7 +45,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onView }) => 
     <button
       type="button"
       onClick={() => onView(product)}
-      className="bg-[#0a0a0a]/80 backdrop-blur-md border border-white/5 rounded-3xl overflow-hidden transition-all duration-500 card-glow group flex h-full w-full flex-col text-left relative md:flex-row"
+      className="relative flex h-full w-full flex-col overflow-hidden rounded-3xl border border-white/5 bg-[#0a0a0a]/80 text-left backdrop-blur-md transition-all duration-500 card-glow group md:flex-row"
     >
       {/* Featured Badge Overlay */}
       {product.featured && (
@@ -55,9 +55,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onView }) => 
       )}
 
       {/* Visual Header - 16:9 */}
-      <div className={`relative aspect-video w-full bg-gradient-to-br ${getHeaderGradient(product.type)} flex items-center justify-center border-b border-white/5 overflow-hidden md:aspect-auto md:w-[42%] md:border-b-0 md:border-r`}>
+      <div className={`relative flex aspect-video w-full items-center justify-center overflow-hidden border-b border-white/5 bg-gradient-to-br ${getHeaderGradient(product.type)} md:aspect-auto md:w-[42%] md:border-b-0 md:border-r`}>
         {/* Top-Left Category Badge */}
-        <div className="absolute top-4 left-4 bg-black/50 backdrop-blur-lg px-2.5 py-1.5 rounded-lg border border-white/10 flex items-center gap-2 transform transition-transform duration-500 group-hover:translate-x-1">
+        <div className="absolute left-3 top-3 flex items-center gap-2 rounded-lg border border-white/10 bg-black/50 px-2.5 py-1.5 backdrop-blur-lg transition-transform duration-500 group-hover:translate-x-1 sm:left-4 sm:top-4">
           {badgeIcon === 'key' ? (
             <KeyRound className="w-3.5 h-3.5 text-[#facc15]" />
           ) : badgeIcon === 'shield' ? (
@@ -82,30 +82,30 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onView }) => 
       </div>
 
       {/* Details Section */}
-      <div className="p-6 flex flex-col flex-1">
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex-1">
-            <h3 className="text-xl font-black text-white tracking-tight leading-tight mb-1 group-hover:text-[#facc15] transition-colors">{product.name}</h3>
+      <div className="flex flex-1 flex-col p-4 sm:p-6">
+        <div className="mb-4 flex flex-col items-start gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="w-full min-w-0 flex-1">
+            <h3 className="mb-1 truncate text-xl font-black leading-tight tracking-tight text-white transition-colors group-hover:text-[#facc15]">{product.name}</h3>
             <div className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-widest transition-all ${stockLabelClass}`}>
               <span className={`h-1.5 w-1.5 rounded-full ${stockDotClass}`}></span>
               <span>{stockLabel}</span>
             </div>
           </div>
-          <div className="text-right ml-4">
-             <p className="text-[9px] font-black text-white/30 uppercase tracking-widest">{isTiered ? 'Range' : 'Starts at'}</p>
-             <div className="flex items-center justify-end gap-1">
+          <div className="w-full text-left sm:ml-4 sm:w-auto sm:text-right">
+             <p className="text-[9px] font-black uppercase tracking-widest text-white/30">{isTiered ? 'Range' : 'Starts at'}</p>
+             <div className="flex items-center gap-1 sm:justify-end">
                <div className="w-1 h-1 rounded-full bg-[#facc15]"></div>
-               <p className="text-lg font-black text-white">
+               <p className="text-lg font-black text-white sm:text-lg">
                  {isTiered ? `$${minTierPrice.toFixed(2)} - $${maxTierPrice.toFixed(2)}` : `$${product.price.toFixed(2)}`}
                </p>
              </div>
           </div>
         </div>
 
-        <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-6">{product.duration} Access</p>
+        <p className="mb-5 text-[10px] font-bold uppercase tracking-widest text-white/40 sm:mb-6">{product.duration} Access</p>
 
         {/* Status Pills */}
-        <div className="flex items-center gap-2 mb-8">
+        <div className="mb-6 flex flex-wrap items-center gap-2 sm:mb-8">
            <div className="bg-[#facc15]/10 text-[#facc15] px-3 py-1.5 rounded-lg border border-[#facc15]/20 text-[9px] font-black uppercase tracking-widest group-hover:bg-[#facc15]/20 transition-colors">
              UNDETECTED
            </div>
