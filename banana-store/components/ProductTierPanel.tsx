@@ -182,10 +182,10 @@ export const ProductTierPanel: React.FC<ProductTierPanelProps> = ({
                   </div>
 
                   <div className="flex w-full items-center justify-between sm:w-auto sm:shrink-0 sm:justify-end sm:gap-3">
-                    <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex min-w-0 flex-wrap items-baseline gap-2 sm:gap-3">
                       <p className="text-4xl font-black tracking-tight text-[#facc15] sm:text-3xl">${Number(tier.price || 0).toFixed(2)}</p>
                       {!!Number(tier.originalPrice || 0) && Number(tier.originalPrice || 0) > Number(tier.price || 0) && (
-                        <p className="text-base font-black text-white/35 line-through sm:text-sm">${Number(tier.originalPrice || 0).toFixed(2)}</p>
+                        <p className="text-sm font-black text-white/35 line-through sm:text-sm">${Number(tier.originalPrice || 0).toFixed(2)}</p>
                       )}
                     </div>
                     <span className="rounded-xl border border-white/20 bg-white/5 p-2 text-white/70 transition group-hover:border-[#facc15]/40 group-hover:text-[#facc15]">

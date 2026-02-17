@@ -1602,18 +1602,22 @@ class WebsiteBridgeServer:
           transparent 36px
         ),
         #050505;
-      padding: 30px 0;
+      padding: 0;
+      min-height: 100vh;
     }}
     .mail-wrap {{
-      max-width: 1280px;
+      width: 100%;
+      max-width: none;
       margin: 0 auto;
-      padding: 0 18px;
+      padding: 0;
+      min-height: 100vh;
     }}
     .mail-card {{
       width: 100%;
-      max-width: 1080px;
+      max-width: none;
       margin: 0 auto;
-      border-radius: 22px;
+      min-height: 100vh;
+      border-radius: 0;
       border: 1px solid rgba(250, 204, 21, 0.25);
       background: linear-gradient(180deg, #0a0a0a 0%, #070707 100%);
       box-shadow:
@@ -1622,7 +1626,7 @@ class WebsiteBridgeServer:
       overflow: hidden;
     }}
     .mail-header {{
-      padding: 30px 34px 20px;
+      padding: 34px 42px 24px;
       border-bottom: 1px solid rgba(250, 204, 21, 0.18);
       background: linear-gradient(120deg, rgba(250, 204, 21, 0.2), rgba(0, 0, 0, 0));
     }}
@@ -1639,7 +1643,7 @@ class WebsiteBridgeServer:
       text-transform: uppercase;
     }}
     .mail-body {{
-      padding: 28px 34px 34px;
+      padding: 34px 42px 38px;
       color: #f8f8f8;
     }}
     .mail-footer {{
@@ -1715,7 +1719,11 @@ class WebsiteBridgeServer:
         padding-right: 18px;
       }}
       .mail-wrap {{
-        padding: 0 10px;
+        padding: 0;
+      }}
+      .mail-card {{
+        min-height: 100vh;
+        border-radius: 0;
       }}
       .otp-code {{
         font-size: 31px;

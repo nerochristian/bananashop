@@ -76,17 +76,17 @@ export const Auth: React.FC<AuthProps> = ({ onAuthComplete, onBack }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#050505] px-4 relative">
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-yellow-500/5 blur-[120px] rounded-full pointer-events-none"></div>
+    <div className="relative flex min-h-screen items-center justify-center bg-[#050505] px-3 sm:px-4">
+      <div className="pointer-events-none absolute left-1/2 top-1/2 h-[460px] w-[460px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-yellow-500/5 blur-[120px] sm:h-[600px] sm:w-[600px]"></div>
 
       <button
         onClick={onBack}
-        className="absolute top-10 left-10 text-white/40 hover:text-white flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-colors z-50"
+        className="absolute left-4 top-5 z-50 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/40 transition-colors hover:text-white sm:left-10 sm:top-10"
       >
         <ArrowLeft className="w-4 h-4" /> Back to Store
       </button>
 
-      <div className="max-w-md w-full bg-[#0a0a0a] border border-white/5 rounded-[48px] p-12 shadow-2xl relative z-10 overflow-hidden">
+      <div className="relative z-10 w-full max-w-md overflow-hidden rounded-[32px] border border-white/5 bg-[#0a0a0a] p-6 shadow-2xl sm:rounded-[48px] sm:p-12">
         <div className="absolute top-0 right-0 p-8 opacity-10">
           <ShieldCheck className="w-24 h-24 text-[#facc15]" />
         </div>
@@ -103,7 +103,7 @@ export const Auth: React.FC<AuthProps> = ({ onAuthComplete, onBack }) => {
               <LayoutGrid className="w-8 h-8 text-black" strokeWidth={3} />
             )}
           </div>
-          <h2 className="text-3xl font-black text-white tracking-tighter">
+          <h2 className="text-2xl font-black tracking-tighter text-white sm:text-3xl">
             {isOtpStep ? 'Email Verification' : isLogin ? 'Welcome Back' : BRAND_CONFIG.copy.authJoinHeading}
           </h2>
           <p className="text-white/30 mt-2 text-[10px] font-black uppercase tracking-widest">
@@ -157,7 +157,7 @@ export const Auth: React.FC<AuthProps> = ({ onAuthComplete, onBack }) => {
                     inputMode="numeric"
                     value={otpCode}
                     onChange={e => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    className="w-full bg-black border border-white/5 rounded-2xl px-12 py-4 text-white font-bold tracking-[0.35em] focus:border-[#facc15] outline-none transition-all"
+                    className="w-full rounded-2xl border border-white/5 bg-black px-12 py-4 text-white font-bold tracking-[0.28em] outline-none transition-all focus:border-[#facc15] sm:tracking-[0.35em]"
                     placeholder="000000"
                   />
                 </div>
@@ -187,7 +187,7 @@ export const Auth: React.FC<AuthProps> = ({ onAuthComplete, onBack }) => {
           </button>
         </form>
 
-        <div className="mt-8 text-center relative border-t border-white/5 pt-8">
+        <div className="relative mt-8 border-t border-white/5 pt-8 text-center">
           <button
             onClick={() => {
               setIsLogin(!isLogin);
@@ -201,7 +201,7 @@ export const Auth: React.FC<AuthProps> = ({ onAuthComplete, onBack }) => {
         </div>
       </div>
 
-      <div className="fixed bottom-10 text-[9px] font-black text-white/10 uppercase tracking-[0.4em]">
+      <div className="fixed bottom-7 hidden text-[9px] font-black uppercase tracking-[0.4em] text-white/10 sm:block">
         Encrypted AES-256 Session Layer Active
       </div>
     </div>

@@ -76,33 +76,33 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ user, onLogout, on
   }, [user.id]);
 
   return (
-    <div className="min-h-screen pt-32 pb-40 px-6 max-w-7xl mx-auto relative overflow-hidden">
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-20 relative z-10">
+    <div className="relative mx-auto min-h-screen max-w-7xl overflow-hidden px-4 pb-24 pt-24 sm:px-6 sm:pb-40 sm:pt-32">
+      <header className="relative z-10 mb-12 flex flex-col justify-between gap-6 md:mb-20 md:flex-row md:items-end md:gap-8">
         <div>
           <div className="flex items-center gap-3 mb-2">
             <ShieldCheck className="w-4 h-4 text-[#facc15]" />
             <span className="text-[10px] font-black text-[#facc15] uppercase tracking-[0.3em]">Identity Verified</span>
           </div>
-          <h1 className="text-5xl font-black text-white tracking-tighter mb-4 italic uppercase">Member <span className="text-[#facc15]">Vault</span></h1>
-          <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.4em]">Active Session: {user.email}</p>
+          <h1 className="mb-3 text-3xl font-black uppercase tracking-tighter text-white italic sm:mb-4 sm:text-5xl">Member <span className="text-[#facc15]">Vault</span></h1>
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/30 sm:tracking-[0.4em]">Active Session: {user.email}</p>
         </div>
-        <div className="flex gap-4">
-          <button onClick={onBrowse} className="bg-white/5 hover:bg-white/10 text-white px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-white/5 transition-all">Browse Store</button>
-          <button onClick={onLogout} className="bg-red-500/10 hover:bg-red-500/20 text-red-400 px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-red-500/10 transition-all flex items-center gap-2">
+        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:gap-4">
+          <button onClick={onBrowse} className="rounded-2xl border border-white/5 bg-white/5 px-5 py-3 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-white/10 sm:px-6 sm:py-4">Browse Store</button>
+          <button onClick={onLogout} className="flex items-center justify-center gap-2 rounded-2xl border border-red-500/10 bg-red-500/10 px-5 py-3 text-[10px] font-black uppercase tracking-widest text-red-400 transition-all hover:bg-red-500/20 sm:px-6 sm:py-4">
             <LogOut className="w-4 h-4" /> Sign Out
           </button>
         </div>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 relative z-10">
-        <div className="lg:col-span-2 space-y-10">
+      <div className="relative z-10 grid grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-10">
+        <div className="space-y-6 lg:col-span-2 lg:space-y-10">
           <div className="flex items-center gap-4 mb-2">
             <Package className="w-6 h-6 text-[#facc15]" />
             <h2 className="text-2xl font-black text-white tracking-tight italic uppercase">Decrypted Licenses</h2>
           </div>
           
           {orders.length === 0 ? (
-            <div className="bg-[#0a0a0a] border border-dashed border-white/10 rounded-[40px] p-20 text-center flex flex-col items-center">
+            <div className="flex flex-col items-center rounded-[26px] border border-dashed border-white/10 bg-[#0a0a0a] p-10 text-center sm:rounded-[40px] sm:p-20">
                <Fingerprint className="w-12 h-12 text-white/5 mb-6" />
                <p className="text-white/20 font-black uppercase tracking-widest text-xs">No active licenses found in your vault</p>
                <button onClick={onBrowse} className="mt-6 text-[#facc15] font-black uppercase text-[10px] tracking-widest border-b border-[#facc15]/20 pb-1">Initialize first acquisition</button>
@@ -110,20 +110,20 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ user, onLogout, on
           ) : (
             <div className="space-y-6">
               {orders.map(order => (
-                <div key={order.id} className="bg-[#0a0a0a] border border-white/5 rounded-[40px] overflow-hidden group hover:border-[#facc15]/20 transition-all shadow-2xl">
-                  <div className="p-8 border-b border-white/5 flex items-center justify-between bg-white/[0.01]">
-                    <div className="flex items-center gap-4">
+                <div key={order.id} className="group overflow-hidden rounded-[26px] border border-white/5 bg-[#0a0a0a] shadow-2xl transition-all hover:border-[#facc15]/20 sm:rounded-[40px]">
+                  <div className="flex flex-col gap-2 border-b border-white/5 bg-white/[0.01] p-4 sm:flex-row sm:items-center sm:justify-between sm:p-8">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-4">
                        <span className="text-[10px] font-black text-white/30 uppercase tracking-widest">Protocol ID: {order.id}</span>
                        <span className="bg-[#22c55e]/10 text-[#22c55e] px-2 py-0.5 rounded text-[8px] font-black tracking-widest border border-[#22c55e]/20">AUTHENTICATED</span>
                     </div>
                     <span className="text-[10px] font-black text-white/30 uppercase tracking-widest">{new Date(order.createdAt).toLocaleDateString()}</span>
                   </div>
-                  <div className="p-8 space-y-4">
+                  <div className="space-y-4 p-4 sm:p-8">
                     {order.items.map(item => (
-                      <div key={item.id} className="bg-black/40 border border-white/5 rounded-3xl p-6">
-                        <div className="flex justify-between items-start mb-6">
-                          <div>
-                            <h4 className="text-lg font-black text-white tracking-tight italic uppercase">{item.name}</h4>
+                      <div key={item.id} className="rounded-3xl border border-white/5 bg-black/40 p-4 sm:p-6">
+                        <div className="mb-4 flex items-start justify-between gap-3 sm:mb-6">
+                          <div className="min-w-0">
+                            <h4 className="truncate text-base font-black uppercase tracking-tight text-white italic sm:text-lg">{item.name}</h4>
                             <p className="text-[10px] font-black text-white/20 uppercase tracking-widest">Secure Premium Access</p>
                           </div>
                           <div className="p-3 bg-white/5 rounded-2xl">
@@ -149,8 +149,8 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ user, onLogout, on
           )}
         </div>
 
-        <div className="space-y-8">
-           <div className="bg-[#0a0a0a] border border-white/5 rounded-[40px] p-10 relative overflow-hidden group">
+        <div className="space-y-6 sm:space-y-8">
+           <div className="group relative overflow-hidden rounded-[26px] border border-white/5 bg-[#0a0a0a] p-6 sm:rounded-[40px] sm:p-10">
               <div className="absolute top-0 right-0 p-4 opacity-5 translate-x-4 -translate-y-4 group-hover:translate-x-2 group-hover:-translate-y-2 transition-transform">
                 <Shield className="w-32 h-32 text-[#facc15]" />
               </div>
@@ -165,7 +165,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ user, onLogout, on
               </div>
            </div>
            
-           <div className="bg-[#0a0a0a] border border-white/5 rounded-[40px] p-10">
+           <div className="rounded-[26px] border border-white/5 bg-[#0a0a0a] p-6 sm:rounded-[40px] sm:p-10">
               <h3 className="text-lg font-black text-white mb-6 tracking-tight italic uppercase">Vault Operations</h3>
               <ul className="space-y-4">
                 <li className="flex items-center gap-3 text-white/30 hover:text-white transition-colors cursor-pointer group">

@@ -67,12 +67,12 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products }) => {
     <>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-8 right-8 z-50 p-5 rounded-3xl shadow-[0_0_30px_rgba(250,204,21,0.2)] bg-yellow-400 hover:scale-110 transition-all transform active:scale-95 group"
+        className="group fixed bottom-4 right-4 z-50 rounded-3xl bg-yellow-400 p-4 shadow-[0_0_30px_rgba(250,204,21,0.2)] transition-all transform active:scale-95 hover:scale-110 sm:bottom-8 sm:right-8 sm:p-5"
       >
         {isOpen ? <X className="w-6 h-6 text-black transition-transform hover:rotate-90" /> : <MessageSquare className="w-6 h-6 text-black group-hover:rotate-12 transition-transform" />}
       </button>
 
-      <div className={`fixed bottom-28 right-8 w-[380px] bg-[#111] border border-white/10 rounded-[32px] shadow-2xl z-50 flex flex-col transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] origin-bottom-right overflow-hidden ${isOpen ? 'scale-100 opacity-100 translate-y-0' : 'scale-75 opacity-0 translate-y-10 pointer-events-none'}`} style={{ maxHeight: '550px', height: '60vh' }}>
+      <div className={`fixed bottom-20 left-2 right-2 z-50 flex h-[62vh] max-h-[560px] flex-col overflow-hidden rounded-[26px] border border-white/10 bg-[#111] shadow-2xl origin-bottom-right transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] sm:bottom-28 sm:left-auto sm:right-8 sm:h-[60vh] sm:w-[380px] sm:rounded-[32px] ${isOpen ? 'scale-100 opacity-100 translate-y-0' : 'pointer-events-none translate-y-10 scale-75 opacity-0'}`}>
         <div className="p-6 bg-yellow-400 flex items-center gap-3">
           <div className="w-10 h-10 bg-black/10 rounded-2xl flex items-center justify-center animate-pop-in">
             {BRAND_CONFIG.assets.logoUrl ? (

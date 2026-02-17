@@ -98,20 +98,20 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, selectedT
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-6 pt-32 pb-40 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="mx-auto max-w-7xl px-4 pt-24 pb-24 animate-in fade-in slide-in-from-bottom-4 duration-500 sm:px-6 sm:pt-32 sm:pb-40">
       <button 
         onClick={onBack}
-        className="flex items-center gap-2 text-white/40 hover:text-white mb-10 transition-colors uppercase tracking-widest text-[10px] font-black"
+        className="mb-6 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/40 transition-colors hover:text-white sm:mb-10"
       >
         <ArrowLeft className="w-4 h-4" />
         Return to Catalog
       </button>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:gap-10">
         {/* Left Side: Product Hero & Details */}
-        <div className="lg:col-span-8 space-y-8">
+        <div className="space-y-6 lg:col-span-8 lg:space-y-8">
           {/* Main Visual Card */}
-          <div className="relative aspect-video rounded-[40px] overflow-hidden border border-white/5 bg-[#0a0a0a] group">
+          <div className="group relative aspect-video overflow-hidden rounded-[28px] border border-white/5 bg-[#0a0a0a] sm:rounded-[40px]">
             {product.bannerImage ? (
                <img 
                 src={product.bannerImage} 
@@ -127,7 +127,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, selectedT
                   className="absolute inset-0 w-full h-full object-cover mix-blend-overlay opacity-40 transition-transform duration-700 group-hover:scale-110" 
                 />
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-12">
-                   <h1 className="text-5xl md:text-7xl font-black text-white uppercase tracking-tighter drop-shadow-2xl mb-4">
+                   <h1 className="mb-4 text-4xl font-black uppercase tracking-tighter text-white drop-shadow-2xl md:text-7xl">
                      {displayDuration} <br />
                      <span className="text-white/20">{product.type}</span>
                    </h1>
@@ -138,8 +138,8 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, selectedT
           </div>
 
           {/* Detailed Features */}
-          <div className="bg-[#0a0a0a] border border-white/5 rounded-[40px] overflow-hidden">
-            <div className="p-8 border-b border-white/5 flex items-center justify-between">
+          <div className="overflow-hidden rounded-[28px] border border-white/5 bg-[#0a0a0a] sm:rounded-[40px]">
+            <div className="flex items-center justify-between border-b border-white/5 p-5 sm:p-8">
               <div className="flex items-center gap-4">
                  <div className="p-2 bg-white/5 rounded-xl">
                    <Globe className="w-5 h-5 text-white/40" />
@@ -147,13 +147,13 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, selectedT
                  <h3 className="text-lg font-black text-white tracking-tight">Product Description - English</h3>
               </div>
             </div>
-            <div className="p-10 space-y-4">
+            <div className="space-y-4 p-5 sm:p-10">
               {product.detailedDescription?.length 
                 ? product.detailedDescription.map((desc, idx) => renderFeature(desc, idx))
                 : product.features.map((feature, idx) => renderFeature(feature, idx))
               }
               
-              <div className="mt-12 pt-10 border-t border-white/5 text-[11px] font-bold text-white/20 uppercase tracking-widest leading-loose">
+              <div className="mt-8 border-t border-white/5 pt-6 text-[11px] font-bold uppercase leading-loose tracking-widest text-white/20 sm:mt-12 sm:pt-10">
                 {usageNotice.map((line, idx) => (
                   <div key={`${line}-${idx}`}>{line}</div>
                 ))}
@@ -163,10 +163,10 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, selectedT
         </div>
 
         {/* Right Side: Buying Section */}
-        <div className="lg:col-span-4 space-y-6">
-          <div className="bg-[#0a0a0a] border border-white/5 rounded-[40px] p-10 sticky top-32">
+        <div className="space-y-6 lg:col-span-4">
+          <div className="rounded-[28px] border border-white/5 bg-[#0a0a0a] p-5 sm:rounded-[40px] sm:p-8 lg:sticky lg:top-32 lg:p-10">
             <div className="flex items-start justify-between mb-6">
-              <h2 className="text-3xl font-black text-white tracking-tighter leading-tight">{displayName}</h2>
+              <h2 className="text-2xl font-black leading-tight tracking-tighter text-white sm:text-3xl">{displayName}</h2>
               {product.featured && (
                 <div className="bg-[#facc15]/20 text-[#facc15] border border-[#facc15]/40 px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-[0_0_20px_rgba(250,204,21,0.2)]">
                   <Star className="w-3 h-3 fill-current" />
@@ -175,7 +175,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, selectedT
               )}
             </div>
 
-            <div className="text-4xl font-black text-white mb-8 tracking-tighter">
+            <div className="mb-8 text-3xl font-black tracking-tighter text-white sm:text-4xl">
               {isTierView
                 ? `$${displayPrice.toFixed(2)}`
                 : isTiered
@@ -187,7 +187,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, selectedT
             </div>
 
             {/* Stock Bar */}
-            <div className="mb-10">
+            <div className="mb-8 sm:mb-10">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Stock Status</span>
                 <span
@@ -209,7 +209,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, selectedT
             </div>
 
             {/* Badges */}
-            <div className="flex flex-wrap gap-2 mb-10">
+            <div className="mb-8 flex flex-wrap gap-2 sm:mb-10">
               <div className="bg-white/5 border border-white/10 px-3 py-2 rounded-xl flex items-center gap-2">
                 <CheckCircle2 className="w-3 h-3 text-white/40" />
                 <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Verified Quality</span>
@@ -225,7 +225,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, selectedT
             </div>
 
             {/* Quantity & Buy Section */}
-            <div className="p-6 rounded-[32px] border-2 border-dashed border-white/5 bg-black/20 mb-8">
+            <div className="mb-8 rounded-[24px] border-2 border-dashed border-white/5 bg-black/20 p-4 sm:rounded-[32px] sm:p-6">
               {isTiered && (
                 <div className="mb-4 rounded-xl border border-[#facc15]/40 bg-[#facc15]/10 px-3 py-2 text-xs font-bold uppercase tracking-widest text-[#facc15]">
                   {isTierView
@@ -234,12 +234,12 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, selectedT
                 </div>
               )}
               <div className="space-y-4 mb-8">
-                <label className="text-[10px] font-black text-white/20 uppercase tracking-widest ml-1">Quantity</label>
-                <div className="flex items-center justify-between bg-black border border-white/10 p-2 rounded-2xl">
+                <label className="ml-1 text-[10px] font-black uppercase tracking-widest text-white/20">Quantity</label>
+                <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-black p-2">
                   <button 
                     onClick={() => updateQuantity(quantity - 1)}
                     disabled={!isTierView && isTiered}
-                    className="w-12 h-12 flex items-center justify-center text-white/20 hover:text-white transition-colors"
+                    className="flex h-10 w-10 items-center justify-center text-white/20 transition-colors hover:text-white sm:h-12 sm:w-12"
                   >
                     <Minus className="w-5 h-5" />
                   </button>
@@ -252,7 +252,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, selectedT
                   <button 
                     onClick={() => updateQuantity(quantity + 1)}
                     disabled={(!isTierView && isTiered) || isOutOfStock || quantity >= currentStock}
-                    className="w-12 h-12 flex items-center justify-center text-white/20 hover:text-white transition-colors"
+                    className="flex h-10 w-10 items-center justify-center text-white/20 transition-colors hover:text-white sm:h-12 sm:w-12"
                   >
                     <Plus className="w-5 h-5" />
                   </button>
@@ -263,7 +263,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, selectedT
                 <button 
                   disabled={isOutOfStock}
                   onClick={() => onAddToCart(product, quantity, selectedTier || undefined)}
-                  className="w-full bg-[#facc15] hover:bg-yellow-300 text-black font-black py-5 rounded-2xl transition-all shadow-xl shadow-yellow-400/10 flex items-center justify-center gap-3 active:scale-[0.98] uppercase tracking-widest text-xs"
+                  className="flex w-full items-center justify-center gap-3 rounded-2xl bg-[#facc15] py-4 text-xs font-black uppercase tracking-widest text-black shadow-xl shadow-yellow-400/10 transition-all active:scale-[0.98] hover:bg-yellow-300 sm:py-5"
                 >
                   <ShoppingCart className="w-4 h-4" />
                   Add to Cart
@@ -271,7 +271,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, selectedT
                 <button 
                   disabled={isOutOfStock}
                   onClick={() => onBuyNow(product, quantity, selectedTier || undefined)}
-                  className="w-full bg-white/5 hover:bg-white/10 text-white/90 font-black py-5 rounded-2xl transition-all flex items-center justify-center gap-3 uppercase tracking-widest text-xs border border-white/5"
+                  className="flex w-full items-center justify-center gap-3 rounded-2xl border border-white/5 bg-white/5 py-4 text-xs font-black uppercase tracking-widest text-white/90 transition-all hover:bg-white/10 sm:py-5"
                 >
                   <Zap className="w-4 h-4 text-[#facc15]" />
                   Buy Now
@@ -280,7 +280,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, selectedT
             </div>
 
             {/* Dynamic Offer */}
-            <div className="flex items-center gap-4 bg-[#facc15]/5 p-4 rounded-2xl border border-[#facc15]/10">
+            <div className="flex items-center gap-4 rounded-2xl border border-[#facc15]/10 bg-[#facc15]/5 p-4">
                <div className="w-10 h-10 rounded-full bg-[#facc15]/20 flex items-center justify-center">
                  <RefreshCw className="w-5 h-5 text-[#facc15]" />
                </div>

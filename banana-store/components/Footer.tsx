@@ -9,12 +9,12 @@ interface FooterProps {
 
 export const Footer: React.FC<FooterProps> = ({ onOpenPrivacy, onOpenTerms }) => {
   return (
-    <footer className="py-32 border-t border-white/5 bg-[#050505]/50 relative overflow-hidden">
+    <footer className="relative overflow-hidden border-t border-white/5 bg-[#050505]/50 py-20 sm:py-32">
       {/* Subtle bottom glow */}
       <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-32 bg-yellow-500/5 blur-[120px] pointer-events-none"></div>
       
-      <div className="max-w-7xl mx-auto px-6 flex flex-col items-center relative z-10">
-        <div className="flex items-center gap-3 mb-10 group cursor-pointer opacity-80 hover:opacity-100 transition-opacity">
+      <div className="relative z-10 mx-auto flex max-w-7xl flex-col items-center px-4 sm:px-6">
+        <div className="group mb-8 flex cursor-pointer items-center gap-3 opacity-80 transition-opacity hover:opacity-100 sm:mb-10">
           <div className="bg-[#facc15] p-2 rounded-xl rotate-3 group-hover:rotate-0 transition-transform">
             {BRAND_CONFIG.assets.logoUrl ? (
               <img
@@ -26,10 +26,10 @@ export const Footer: React.FC<FooterProps> = ({ onOpenPrivacy, onOpenTerms }) =>
               <LayoutGrid className="w-6 h-6 text-black" strokeWidth={3} />
             )}
           </div>
-          <span className="text-3xl font-black tracking-tighter text-white">{BRAND_CONFIG.identity.storeName}</span>
+          <span className="text-2xl font-black tracking-tighter text-white sm:text-3xl">{BRAND_CONFIG.identity.storeName}</span>
         </div>
         
-        <p className="text-white/20 text-[11px] font-black tracking-[0.4em] uppercase mb-10 text-center max-w-sm leading-relaxed">
+        <p className="mb-8 max-w-sm text-center text-[10px] font-black uppercase leading-relaxed tracking-[0.25em] text-white/20 sm:mb-10 sm:text-[11px] sm:tracking-[0.4em]">
           {BRAND_CONFIG.copy.footerTagline}
         </p>
         
