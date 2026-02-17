@@ -44,6 +44,22 @@ class WebsiteBridgeServer:
         self.login_otp_ttl_seconds = max(60, self._to_int(os.getenv("AUTH_2FA_TTL_SECONDS"), default=300) or 300)
         self.login_otp_max_attempts = max(1, self._to_int(os.getenv("AUTH_2FA_MAX_ATTEMPTS"), default=5) or 5)
         self.login_otp_sessions: dict[str, dict[str, Any]] = {}
+        self.discord_link_required_on_login = self._env_bool("DISCORD_REQUIRE_LINK_ON_LOGIN", default=True)
+        self.discord_link_token_ttl_seconds = max(
+            120, self._to_int(os.getenv("DISCORD_LINK_TOKEN_TTL_SECONDS"), default=600) or 600
+        )
+        self.discord_oauth_state_ttl_seconds = max(
+            120, self._to_int(os.getenv("DISCORD_OAUTH_STATE_TTL_SECONDS"), default=600) or 600
+        )
+        self.discord_oauth_client_id = (os.getenv("DISCORD_OAUTH_CLIENT_ID") or "").strip()
+        self.discord_oauth_client_secret = (os.getenv("DISCORD_OAUTH_CLIENT_SECRET") or "").strip()
+        self.discord_oauth_redirect_uri = (os.getenv("DISCORD_OAUTH_REDIRECT_URI") or "").strip()
+        self.discord_oauth_scopes = (os.getenv("DISCORD_OAUTH_SCOPES") or "identify email").strip() or "identify email"
+        self.discord_oauth_authorize_url = "https://discord.com/oauth2/authorize"
+        self.discord_oauth_token_url = "https://discord.com/api/oauth2/token"
+        self.discord_oauth_me_url = "https://discord.com/api/users/@me"
+        self.discord_link_tokens: dict[str, dict[str, Any]] = {}
+        self.discord_oauth_states: dict[str, dict[str, Any]] = {}
 
         self.smtp_host = (os.getenv("SMTP_HOST") or "").strip()
         self.smtp_port = self._to_int(os.getenv("SMTP_PORT"), default=587) or 587
@@ -136,6 +152,9 @@ class WebsiteBridgeServer:
         self.app.router.add_post("/shop/auth/login", self.shop_auth_login)
         self.app.router.add_post("/shop/auth/verify-otp", self.shop_auth_verify_otp)
         self.app.router.add_post("/shop/auth/register", self.shop_auth_register)
+        self.app.router.add_post("/shop/auth/discord/connect-url", self.shop_auth_discord_connect_url)
+        self.app.router.add_get("/shop/auth/discord/callback", self.shop_auth_discord_callback)
+        self.app.router.add_post("/shop/auth/discord/unlink", self.shop_auth_discord_unlink)
         self.app.router.add_post("/shop/products", self.shop_upsert_product)
         self.app.router.add_delete("/shop/products/{product_id}", self.shop_delete_product)
         self.app.router.add_get("/shop/inventory/{product_id}", self.shop_get_inventory)
@@ -172,7 +191,7 @@ class WebsiteBridgeServer:
         if request.method == "OPTIONS":
             return await handler(request)
 
-        if request.path in {"/api/bot/health", "/shop/health"}:
+        if request.path in {"/api/bot/health", "/shop/health", "/shop/auth/discord/callback"}:
             return await handler(request)
 
         if request.method == "GET" and request.path in {"/shop/products", "/shop/payment-methods"}:
@@ -437,8 +456,19 @@ class WebsiteBridgeServer:
 
             public_user = dict(user)
             public_user.pop("password", None)
+            discord_link_token = self._issue_discord_link_token(public_user)
+            has_discord_link = bool(str(public_user.get("discordId") or "").strip())
+            requires_discord = bool(self.discord_link_required_on_login and self._is_discord_oauth_ready() and not has_discord_link)
             await self._append_security_log(f"User Authentication Successful: {email}", "SUCCESS")
-            return web.json_response({"ok": True, "user": public_user})
+            return web.json_response(
+                {
+                    "ok": True,
+                    "user": public_user,
+                    "discordLinkToken": discord_link_token,
+                    "requiresDiscord": requires_discord,
+                    "message": "Connect Discord to continue" if requires_discord else "",
+                }
+            )
 
         await self._append_security_log(f"Failed Login Attempt: {email}", "CRITICAL")
         return web.json_response({"ok": False, "message": "invalid email or password"}, status=401)
@@ -482,8 +512,19 @@ class WebsiteBridgeServer:
                 continue
             public_user = dict(user)
             public_user.pop("password", None)
+            discord_link_token = self._issue_discord_link_token(public_user)
+            has_discord_link = bool(str(public_user.get("discordId") or "").strip())
+            requires_discord = bool(self.discord_link_required_on_login and self._is_discord_oauth_ready() and not has_discord_link)
             await self._append_security_log(f"User 2FA Authentication Successful: {email}", "SUCCESS")
-            return web.json_response({"ok": True, "user": public_user})
+            return web.json_response(
+                {
+                    "ok": True,
+                    "user": public_user,
+                    "discordLinkToken": discord_link_token,
+                    "requiresDiscord": requires_discord,
+                    "message": "Connect Discord to continue" if requires_discord else "",
+                }
+            )
 
         await self._append_security_log(f"User not found after OTP verify: {email}", "CRITICAL")
         return web.json_response({"ok": False, "message": "user not found"}, status=404)
@@ -510,12 +551,241 @@ class WebsiteBridgeServer:
             "password": password,
             "role": "user",
             "createdAt": datetime.now(timezone.utc).isoformat(),
+            "discordId": "",
+            "discordUsername": "",
+            "discordAvatar": "",
+            "discordLinkedAt": "",
         }
         users.append(user)
         await self._save_state("users", users)
         await self._append_security_log(f"New User Registered: {email}", "SUCCESS")
 
         public_user = dict(user)
+        public_user.pop("password", None)
+        return web.json_response({"ok": True, "user": public_user})
+
+    async def shop_auth_discord_connect_url(self, request: web.Request):
+        payload = await self._safe_json(request)
+        if payload is None:
+            return web.json_response({"ok": False, "message": "invalid json body"}, status=400)
+
+        if not self._is_discord_oauth_ready():
+            return web.json_response({"ok": False, "message": "discord oauth is not configured"}, status=503)
+
+        link_token = str(payload.get("linkToken") or "").strip()
+        return_url = str(payload.get("returnUrl") or "").strip()
+        if not link_token:
+            return web.json_response({"ok": False, "message": "link token is required"}, status=400)
+
+        self._purge_expired_discord_link_tokens()
+        self._purge_expired_discord_oauth_states()
+        token_row = self.discord_link_tokens.get(link_token)
+        if not isinstance(token_row, dict):
+            return web.json_response({"ok": False, "message": "invalid or expired link token"}, status=401)
+
+        normalized_return_url = self._sanitize_discord_return_url(return_url)
+        state = secrets.token_urlsafe(24)
+        self.discord_oauth_states[state] = {
+            "linkToken": link_token,
+            "returnUrl": normalized_return_url,
+            "expiresAt": (datetime.now(timezone.utc) + timedelta(seconds=self.discord_oauth_state_ttl_seconds)).isoformat(),
+        }
+
+        authorize_query = urlencode(
+            {
+                "client_id": self.discord_oauth_client_id,
+                "response_type": "code",
+                "redirect_uri": self.discord_oauth_redirect_uri,
+                "scope": self.discord_oauth_scopes,
+                "state": state,
+            }
+        )
+        authorize_url = f"{self.discord_oauth_authorize_url}?{authorize_query}"
+        return web.json_response({"ok": True, "url": authorize_url})
+
+    async def shop_auth_discord_callback(self, request: web.Request):
+        self._purge_expired_discord_link_tokens()
+        self._purge_expired_discord_oauth_states()
+
+        state = str(request.query.get("state") or "").strip()
+        if not state:
+            return web.Response(text="Missing Discord OAuth state.", status=400)
+
+        oauth_state = self.discord_oauth_states.pop(state, None)
+        if not isinstance(oauth_state, dict):
+            return web.Response(text="Invalid or expired Discord OAuth state.", status=400)
+
+        return_url = self._sanitize_discord_return_url(str(oauth_state.get("returnUrl") or ""))
+
+        oauth_error = str(request.query.get("error") or "").strip()
+        if oauth_error:
+            await self._append_security_log(f"Discord OAuth canceled or failed: {oauth_error}", "WARNING")
+            raise web.HTTPFound(
+                self._append_query_params(
+                    return_url,
+                    {
+                        "discord": "error",
+                        "message": oauth_error,
+                    },
+                )
+            )
+
+        code = str(request.query.get("code") or "").strip()
+        if not code:
+            raise web.HTTPFound(
+                self._append_query_params(
+                    return_url,
+                    {
+                        "discord": "error",
+                        "message": "missing_oauth_code",
+                    },
+                )
+            )
+
+        link_token = str(oauth_state.get("linkToken") or "").strip()
+        token_row = self.discord_link_tokens.get(link_token)
+        if not isinstance(token_row, dict):
+            raise web.HTTPFound(
+                self._append_query_params(
+                    return_url,
+                    {
+                        "discord": "error",
+                        "message": "link_session_expired",
+                    },
+                )
+            )
+
+        discord_user = await self._fetch_discord_oauth_user(code)
+        if not isinstance(discord_user, dict):
+            await self._append_security_log("Discord OAuth user fetch failed", "WARNING")
+            raise web.HTTPFound(
+                self._append_query_params(
+                    return_url,
+                    {
+                        "discord": "error",
+                        "message": "discord_fetch_failed",
+                    },
+                )
+            )
+
+        discord_id = str(discord_user.get("id") or "").strip()
+        if not discord_id:
+            raise web.HTTPFound(
+                self._append_query_params(
+                    return_url,
+                    {
+                        "discord": "error",
+                        "message": "discord_id_missing",
+                    },
+                )
+            )
+
+        users = await self._load_state("users")
+        if not isinstance(users, list):
+            users = []
+        users = self._ensure_default_admin_user([item for item in users if isinstance(item, dict)])
+
+        target_user_id = str(token_row.get("userId") or "").strip()
+        target_email = str(token_row.get("email") or "").strip().lower()
+        target_user: Optional[dict[str, Any]] = None
+        for user in users:
+            user_id = str(user.get("id") or "").strip()
+            user_email = str(user.get("email") or "").strip().lower()
+            if user_id == target_user_id and user_email == target_email:
+                target_user = user
+                break
+
+        if target_user is None:
+            self.discord_link_tokens.pop(link_token, None)
+            raise web.HTTPFound(
+                self._append_query_params(
+                    return_url,
+                    {
+                        "discord": "error",
+                        "message": "user_not_found",
+                    },
+                )
+            )
+
+        for user in users:
+            if user is target_user:
+                continue
+            if str(user.get("discordId") or "").strip() == discord_id:
+                raise web.HTTPFound(
+                    self._append_query_params(
+                        return_url,
+                        {
+                            "discord": "error",
+                            "message": "discord_already_linked",
+                        },
+                    )
+                )
+
+        username = str(discord_user.get("global_name") or discord_user.get("username") or "").strip()
+        avatar_hash = str(discord_user.get("avatar") or "").strip()
+        avatar_url = ""
+        if avatar_hash:
+            avatar_url = f"https://cdn.discordapp.com/avatars/{discord_id}/{avatar_hash}.png?size=256"
+
+        target_user["discordId"] = discord_id
+        target_user["discordUsername"] = username
+        target_user["discordAvatar"] = avatar_url
+        target_user["discordLinkedAt"] = datetime.now(timezone.utc).isoformat()
+        await self._save_state("users", users)
+        self.discord_link_tokens.pop(link_token, None)
+        await self._append_security_log(
+            f"Discord linked for {str(target_user.get('email') or '').strip().lower()} ({discord_id})",
+            "SUCCESS",
+        )
+
+        raise web.HTTPFound(
+            self._append_query_params(
+                return_url,
+                {
+                    "discord": "linked",
+                    "discordId": discord_id,
+                    "discordUsername": username,
+                    "discordAvatar": avatar_url,
+                    "email": str(target_user.get("email") or "").strip().lower(),
+                },
+            )
+        )
+
+    async def shop_auth_discord_unlink(self, request: web.Request):
+        payload = await self._safe_json(request)
+        if payload is None:
+            return web.json_response({"ok": False, "message": "invalid json body"}, status=400)
+
+        user_id = str(payload.get("userId") or "").strip()
+        email = str(payload.get("email") or "").strip().lower()
+        if not user_id or not email:
+            return web.json_response({"ok": False, "message": "user id and email are required"}, status=400)
+
+        users = await self._load_state("users")
+        if not isinstance(users, list):
+            users = []
+        users = self._ensure_default_admin_user([item for item in users if isinstance(item, dict)])
+
+        target_user: Optional[dict[str, Any]] = None
+        for user in users:
+            if str(user.get("id") or "").strip() != user_id:
+                continue
+            if str(user.get("email") or "").strip().lower() != email:
+                continue
+            target_user = user
+            break
+
+        if target_user is None:
+            return web.json_response({"ok": False, "message": "user not found"}, status=404)
+
+        target_user["discordId"] = ""
+        target_user["discordUsername"] = ""
+        target_user["discordAvatar"] = ""
+        target_user["discordLinkedAt"] = ""
+        await self._save_state("users", users)
+        await self._append_security_log(f"Discord unlinked for {email}", "WARNING")
+
+        public_user = dict(target_user)
         public_user.pop("password", None)
         return web.json_response({"ok": True, "user": public_user})
 
@@ -2216,6 +2486,10 @@ class WebsiteBridgeServer:
                     "password": self.admin_password,
                     "role": "admin",
                     "createdAt": datetime.now(timezone.utc).isoformat(),
+                    "discordId": "",
+                    "discordUsername": "",
+                    "discordAvatar": "",
+                    "discordLinkedAt": "",
                 }
             ],
             "logs": [
@@ -2310,6 +2584,10 @@ class WebsiteBridgeServer:
                 "password": str(user.get("password") or ""),
                 "role": "admin" if role == "admin" else "user",
                 "createdAt": str(user.get("createdAt") or datetime.now(timezone.utc).isoformat()),
+                "discordId": str(user.get("discordId") or "").strip(),
+                "discordUsername": str(user.get("discordUsername") or "").strip(),
+                "discordAvatar": str(user.get("discordAvatar") or "").strip(),
+                "discordLinkedAt": str(user.get("discordLinkedAt") or "").strip(),
             }
             if email == self.admin_email:
                 normalized_user["id"] = str(user.get("id") or "admin-1337")
@@ -2327,9 +2605,166 @@ class WebsiteBridgeServer:
                     "password": self.admin_password,
                     "role": "admin",
                     "createdAt": datetime.now(timezone.utc).isoformat(),
+                    "discordId": "",
+                    "discordUsername": "",
+                    "discordAvatar": "",
+                    "discordLinkedAt": "",
                 },
             )
         return normalized
+
+    def _is_discord_oauth_ready(self) -> bool:
+        return bool(
+            self.discord_oauth_client_id
+            and self.discord_oauth_client_secret
+            and self.discord_oauth_redirect_uri
+        )
+
+    def _issue_discord_link_token(self, user: dict[str, Any]) -> str:
+        self._purge_expired_discord_link_tokens()
+        token = secrets.token_urlsafe(24)
+        self.discord_link_tokens[token] = {
+            "userId": str(user.get("id") or "").strip(),
+            "email": str(user.get("email") or "").strip().lower(),
+            "expiresAt": (datetime.now(timezone.utc) + timedelta(seconds=self.discord_link_token_ttl_seconds)).isoformat(),
+        }
+        return token
+
+    def _purge_expired_discord_link_tokens(self) -> None:
+        now = datetime.now(timezone.utc)
+        expired_tokens: list[str] = []
+        for token, row in self.discord_link_tokens.items():
+            expires_raw = str(row.get("expiresAt") or "").strip()
+            if not expires_raw:
+                expired_tokens.append(token)
+                continue
+            try:
+                expires_at = datetime.fromisoformat(expires_raw)
+                if expires_at.tzinfo is None:
+                    expires_at = expires_at.replace(tzinfo=timezone.utc)
+            except Exception:
+                expired_tokens.append(token)
+                continue
+            if expires_at <= now:
+                expired_tokens.append(token)
+        for token in expired_tokens:
+            self.discord_link_tokens.pop(token, None)
+
+    def _purge_expired_discord_oauth_states(self) -> None:
+        now = datetime.now(timezone.utc)
+        expired_states: list[str] = []
+        for state, row in self.discord_oauth_states.items():
+            expires_raw = str(row.get("expiresAt") or "").strip()
+            if not expires_raw:
+                expired_states.append(state)
+                continue
+            try:
+                expires_at = datetime.fromisoformat(expires_raw)
+                if expires_at.tzinfo is None:
+                    expires_at = expires_at.replace(tzinfo=timezone.utc)
+            except Exception:
+                expired_states.append(state)
+                continue
+            if expires_at <= now:
+                expired_states.append(state)
+        for state in expired_states:
+            self.discord_oauth_states.pop(state, None)
+
+    def _default_discord_return_url(self) -> str:
+        candidates = [
+            (os.getenv("FRONTEND_ORIGIN") or "").strip(),
+            *self.allowed_origins,
+            "http://localhost:3000",
+        ]
+        for candidate in candidates:
+            if not candidate or "*" in candidate:
+                continue
+            parsed = urlparse(candidate)
+            if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+                continue
+            return urlunparse((parsed.scheme, parsed.netloc, "/auth", "", "", ""))
+        return "http://localhost:3000/auth"
+
+    def _sanitize_discord_return_url(self, candidate: str) -> str:
+        fallback = self._default_discord_return_url()
+        value = (candidate or "").strip()
+        if not value:
+            return fallback
+        parsed = urlparse(value)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            return fallback
+        origin = f"{parsed.scheme}://{parsed.netloc}"
+        if not self._is_origin_allowed(origin):
+            return fallback
+        path = parsed.path or "/auth"
+        return urlunparse((parsed.scheme, parsed.netloc, path, parsed.params, parsed.query, parsed.fragment))
+
+    def _append_query_params(self, target_url: str, params: dict[str, Any]) -> str:
+        parsed = urlparse(target_url)
+        existing = dict(parse_qsl(parsed.query, keep_blank_values=True))
+        for key, value in params.items():
+            if value is None:
+                continue
+            existing[str(key)] = str(value)
+        merged_query = urlencode(existing)
+        return urlunparse((parsed.scheme, parsed.netloc, parsed.path, parsed.params, merged_query, parsed.fragment))
+
+    async def _fetch_discord_oauth_user(self, code: str) -> Optional[dict[str, Any]]:
+        if not self._is_discord_oauth_ready():
+            return None
+
+        timeout = ClientTimeout(total=15)
+        token_payload: dict[str, Any] | None = None
+        try:
+            async with ClientSession(timeout=timeout) as session:
+                async with session.post(
+                    self.discord_oauth_token_url,
+                    data={
+                        "client_id": self.discord_oauth_client_id,
+                        "client_secret": self.discord_oauth_client_secret,
+                        "grant_type": "authorization_code",
+                        "code": code,
+                        "redirect_uri": self.discord_oauth_redirect_uri,
+                        "scope": self.discord_oauth_scopes,
+                    },
+                    headers={"Content-Type": "application/x-www-form-urlencoded"},
+                ) as token_response:
+                    token_text = await token_response.text()
+                    if token_response.status < 200 or token_response.status >= 300:
+                        logger.error(
+                            f"Discord OAuth token exchange failed: status={token_response.status} response={token_text}"
+                        )
+                        return None
+                    try:
+                        token_payload = json.loads(token_text)
+                    except Exception:
+                        logger.error("Discord OAuth token response was not valid JSON")
+                        return None
+
+                access_token = str((token_payload or {}).get("access_token") or "").strip()
+                if not access_token:
+                    return None
+
+                async with session.get(
+                    self.discord_oauth_me_url,
+                    headers={"Authorization": f"Bearer {access_token}"},
+                ) as me_response:
+                    me_text = await me_response.text()
+                    if me_response.status < 200 or me_response.status >= 300:
+                        logger.error(
+                            f"Discord OAuth profile request failed: status={me_response.status} response={me_text}"
+                        )
+                        return None
+                    try:
+                        payload = json.loads(me_text)
+                    except Exception:
+                        return None
+                    if isinstance(payload, dict):
+                        return payload
+                    return None
+        except Exception as exc:
+            logger.error(f"Discord OAuth flow failed: {exc}")
+            return None
 
     async def _append_security_log(self, event: str, status: str) -> None:
         logs = await self._load_state("logs")

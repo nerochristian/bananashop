@@ -8,6 +8,10 @@ export interface User {
   password?: string;
   role: 'admin' | 'user';
   createdAt: string;
+  discordId?: string;
+  discordUsername?: string;
+  discordAvatar?: string;
+  discordLinkedAt?: string;
 }
 
 export interface SecurityLog {

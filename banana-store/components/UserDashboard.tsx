@@ -2,12 +2,13 @@
 import React, { useState, useEffect } from 'react';
 import { Order, User } from '../services/storageService';
 import { ShopApiService } from '../services/shopApiService';
-import { Package, Key, ExternalLink, Shield, LogOut, LayoutGrid, Fingerprint, Lock, ShieldCheck, Activity } from 'lucide-react';
+import { Package, Shield, LogOut, Fingerprint, Lock, ShieldCheck, Activity, Unlink2 } from 'lucide-react';
 
 interface UserDashboardProps {
   user: User;
   onLogout: () => void;
   onBrowse: () => void;
+  onUserUpdate: (user: User) => void;
 }
 
 const DecryptingInput = ({ value }: { value?: string }) => {
@@ -56,8 +57,13 @@ const DecryptingInput = ({ value }: { value?: string }) => {
   );
 };
 
-export const UserDashboard: React.FC<UserDashboardProps> = ({ user, onLogout, onBrowse }) => {
+export const UserDashboard: React.FC<UserDashboardProps> = ({ user, onLogout, onBrowse, onUserUpdate }) => {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [isUnlinkingDiscord, setIsUnlinkingDiscord] = useState(false);
+  const [discordActionError, setDiscordActionError] = useState('');
+
+  const discordLinked = Boolean((user.discordId || '').trim());
+  const discordLabel = user.discordUsername || (user.discordId ? `Discord ${user.discordId}` : 'Connected Discord');
 
   useEffect(() => {
     let cancelled = false;
@@ -75,6 +81,20 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ user, onLogout, on
     };
   }, [user.id]);
 
+  const handleUnlinkDiscord = async () => {
+    if (!discordLinked || isUnlinkingDiscord) return;
+    setDiscordActionError('');
+    setIsUnlinkingDiscord(true);
+    try {
+      const updatedUser = await ShopApiService.authDiscordUnlink(user.id, user.email);
+      onUserUpdate(updatedUser);
+    } catch (unlinkError) {
+      setDiscordActionError(unlinkError instanceof Error ? unlinkError.message : 'Failed to unlink Discord');
+    } finally {
+      setIsUnlinkingDiscord(false);
+    }
+  };
+
   return (
     <div className="relative mx-auto min-h-screen max-w-7xl overflow-hidden px-4 pb-24 pt-24 sm:px-6 sm:pb-40 sm:pt-32">
       <header className="relative z-10 mb-12 flex flex-col justify-between gap-6 md:mb-20 md:flex-row md:items-end md:gap-8">
@@ -85,6 +105,31 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ user, onLogout, on
           </div>
           <h1 className="mb-3 text-3xl font-black uppercase tracking-tighter text-white italic sm:mb-4 sm:text-5xl">Member <span className="text-[#facc15]">Vault</span></h1>
           <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/30 sm:tracking-[0.4em]">Active Session: {user.email}</p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span
+              className={`inline-flex items-center rounded-full border px-3 py-1 text-[9px] font-black uppercase tracking-[0.2em] ${
+                discordLinked
+                  ? 'border-[#5865F2]/40 bg-[#5865F2]/15 text-[#C7CEFF]'
+                  : 'border-white/15 bg-white/5 text-white/45'
+              }`}
+            >
+              {discordLinked ? `Connected Discord${discordLabel ? `: ${discordLabel}` : ''}` : 'Discord Not Connected'}
+            </span>
+            {discordLinked && (
+              <button
+                type="button"
+                onClick={handleUnlinkDiscord}
+                disabled={isUnlinkingDiscord}
+                className="inline-flex items-center gap-1 rounded-full border border-red-500/25 bg-red-500/10 px-3 py-1 text-[9px] font-black uppercase tracking-[0.2em] text-red-300 transition-all hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <Unlink2 className="h-3.5 w-3.5" />
+                {isUnlinkingDiscord ? 'Unlinking...' : 'Unlink Discord'}
+              </button>
+            )}
+          </div>
+          {discordActionError && (
+            <p className="mt-2 text-[10px] font-black uppercase tracking-wider text-red-400">{discordActionError}</p>
+          )}
         </div>
         <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:gap-4">
           <button onClick={onBrowse} className="rounded-2xl border border-white/5 bg-white/5 px-5 py-3 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-white/10 sm:px-6 sm:py-4">Browse Store</button>

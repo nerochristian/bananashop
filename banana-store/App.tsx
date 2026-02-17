@@ -450,6 +450,11 @@ export default function App() {
     setCart([]);
   };
 
+  const handleUserUpdate = (updatedUser: User) => {
+    writeSession(updatedUser);
+    setUser(updatedUser);
+  };
+
   const handleCheckoutSuccess = (updatedProducts?: Product[]) => {
     setCart([]);
     setIsCheckoutOpen(false);
@@ -534,7 +539,12 @@ export default function App() {
         )}
         {view === 'dashboard' && user && (
           <div className="animate-reveal">
-            <UserDashboard user={user} onLogout={handleLogout} onBrowse={() => pushRoute('/', products, user)} />
+            <UserDashboard
+              user={user}
+              onLogout={handleLogout}
+              onBrowse={() => pushRoute('/', products, user)}
+              onUserUpdate={handleUserUpdate}
+            />
           </div>
         )}
         {view === 'privacy' && (

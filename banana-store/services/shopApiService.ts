@@ -130,7 +130,17 @@ export type AuthLoginResult =
   | {
       requires2fa: false;
       user: User;
+      discordLinkToken?: string;
+      requiresDiscord?: boolean;
+      message?: string;
     };
+
+export interface AuthVerifyOtpResult {
+  user: User;
+  discordLinkToken?: string;
+  requiresDiscord?: boolean;
+  message?: string;
+}
 
 export type ShopStateKey =
   | 'settings'
@@ -313,6 +323,8 @@ export const ShopApiService = {
       requires2fa?: boolean;
       otpToken?: string;
       expiresInSeconds?: number;
+      discordLinkToken?: string;
+      requiresDiscord?: boolean;
     };
     if (!response.ok) {
       throw new Error(payload.message || `Login failed (${response.status})`);
@@ -337,18 +349,58 @@ export const ShopApiService = {
     return {
       requires2fa: false,
       user: payload.user,
+      discordLinkToken: payload.discordLinkToken,
+      requiresDiscord: Boolean(payload.requiresDiscord),
+      message: payload.message,
     };
   },
 
-  async authVerifyOtp(otpToken: string, code: string): Promise<User> {
+  async authVerifyOtp(otpToken: string, code: string): Promise<AuthVerifyOtpResult> {
     const response = await withTimeout(resolvePath('/auth/verify-otp'), {
       method: 'POST',
       headers: buildHeaders(),
       body: JSON.stringify({ otpToken, code }),
     });
-    const payload = await response.json().catch(() => ({})) as { ok?: boolean; message?: string; user?: User };
+    const payload = await response.json().catch(() => ({})) as {
+      ok?: boolean;
+      message?: string;
+      user?: User;
+      discordLinkToken?: string;
+      requiresDiscord?: boolean;
+    };
     if (!response.ok || !payload.user) {
       throw new Error(payload.message || `OTP verification failed (${response.status})`);
+    }
+    return {
+      user: payload.user,
+      discordLinkToken: payload.discordLinkToken,
+      requiresDiscord: Boolean(payload.requiresDiscord),
+      message: payload.message,
+    };
+  },
+
+  async authGetDiscordConnectUrl(linkToken: string, returnUrl: string): Promise<{ url: string }> {
+    const response = await withTimeout(resolvePath('/auth/discord/connect-url'), {
+      method: 'POST',
+      headers: buildHeaders(),
+      body: JSON.stringify({ linkToken, returnUrl }),
+    });
+    const payload = await response.json().catch(() => ({})) as { ok?: boolean; message?: string; url?: string };
+    if (!response.ok || !payload.url) {
+      throw new Error(payload.message || `Discord connect failed (${response.status})`);
+    }
+    return { url: payload.url };
+  },
+
+  async authDiscordUnlink(userId: string, email: string): Promise<User> {
+    const response = await withTimeout(resolvePath('/auth/discord/unlink'), {
+      method: 'POST',
+      headers: buildHeaders(),
+      body: JSON.stringify({ userId, email }),
+    });
+    const payload = await response.json().catch(() => ({})) as { ok?: boolean; message?: string; user?: User };
+    if (!response.ok || !payload.user) {
+      throw new Error(payload.message || `Discord unlink failed (${response.status})`);
     }
     return payload.user;
   },
