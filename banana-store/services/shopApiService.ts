@@ -40,8 +40,8 @@ const writeSessionToken = (token: string) => {
   }
 };
 
-const buildHeaders = (): HeadersInit => {
-  const headers: HeadersInit = { 'Content-Type': 'application/json' };
+const buildHeaders = (withJsonContentType: boolean = true): HeadersInit => {
+  const headers: HeadersInit = withJsonContentType ? { 'Content-Type': 'application/json' } : {};
   const sessionToken = readSessionToken();
   if (sessionToken) {
     headers.Authorization = `Bearer ${sessionToken}`;
@@ -465,6 +465,40 @@ export const ShopApiService = {
     return {
       product: payload.product ? normalizeProduct(payload.product) : undefined,
       products: payload.products ? payload.products.map(normalizeProduct) : undefined,
+    };
+  },
+
+  async uploadImage(file: File): Promise<{ id: string; url: string; filename: string; mimeType: string; size: number; createdAt: string }> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await withTimeout(resolvePath('/media/upload'), {
+      method: 'POST',
+      headers: buildHeaders(false),
+      body: formData,
+    });
+    const payload = await response.json().catch(() => ({})) as {
+      ok?: boolean;
+      message?: string;
+      asset?: {
+        id?: string;
+        url?: string;
+        filename?: string;
+        mimeType?: string;
+        size?: number;
+        createdAt?: string;
+      };
+    };
+    if (!response.ok || !payload.asset?.url || !payload.asset?.id) {
+      throw new Error(payload.message || `Image upload failed (${response.status})`);
+    }
+    return {
+      id: String(payload.asset.id),
+      url: String(payload.asset.url),
+      filename: String(payload.asset.filename || file.name || ''),
+      mimeType: String(payload.asset.mimeType || file.type || ''),
+      size: Number(payload.asset.size || file.size || 0),
+      createdAt: String(payload.asset.createdAt || new Date().toISOString()),
     };
   },
 

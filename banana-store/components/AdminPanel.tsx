@@ -187,6 +187,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
   const [featuresText, setFeaturesText] = useState('');
   const [detailsText, setDetailsText] = useState('');
   const [tierDrafts, setTierDrafts] = useState<ProductTier[]>([]);
+  const [uploadingField, setUploadingField] = useState('');
 
   const [categoryDraft, setCategoryDraft] = useState({ name: '', slug: '', visibility: 'public' as Category['visibility'] });
   const [groupDraft, setGroupDraft] = useState({ name: '', visibility: 'public' as ProductGroup['visibility'] });
@@ -395,6 +396,45 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
       }))
     );
     setOpenEditor(true);
+  };
+
+  const uploadDraftImage = async (file: File, target: 'image' | 'bannerImage') => {
+    if (!file) return;
+    if (file.size <= 0) {
+      setMessage('Selected image is empty.');
+      return;
+    }
+    setUploadingField(target);
+    try {
+      const uploaded = await ShopApiService.uploadImage(file);
+      setDraft((prev) => ({ ...prev, [target]: uploaded.url }));
+      setMessage(`Uploaded ${file.name}.`);
+    } catch (error) {
+      console.error('Image upload failed.', error);
+      setMessage(error instanceof Error ? error.message : 'Failed to upload image.');
+    } finally {
+      setUploadingField('');
+    }
+  };
+
+  const uploadTierImage = async (file: File, tierIndex: number) => {
+    if (!file) return;
+    if (file.size <= 0) {
+      setMessage('Selected image is empty.');
+      return;
+    }
+    const fieldKey = `tier-${tierIndex}`;
+    setUploadingField(fieldKey);
+    try {
+      const uploaded = await ShopApiService.uploadImage(file);
+      setTierDrafts((prev) => prev.map((tier, idx) => (idx === tierIndex ? { ...tier, image: uploaded.url } : tier)));
+      setMessage(`Uploaded ${file.name}.`);
+    } catch (error) {
+      console.error('Tier image upload failed.', error);
+      setMessage(error instanceof Error ? error.message : 'Failed to upload tier image.');
+    } finally {
+      setUploadingField('');
+    }
   };
 
   const saveProduct = (e: React.FormEvent) => {
@@ -1614,11 +1654,41 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                   <div>
                     <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-yellow-200/70">Card Image URL</label>
-                    <input value={draft.image} onChange={(e) => setDraft({ ...draft, image: e.target.value })} className={fieldClass} placeholder="https://..." />
+                    <div className="space-y-2">
+                      <input value={draft.image} onChange={(e) => setDraft({ ...draft, image: e.target.value })} className={fieldClass} placeholder="https://... or upload below" />
+                      <label className={`${subtleButtonClass} flex cursor-pointer items-center justify-center`}>
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) void uploadDraftImage(file, 'image');
+                            e.currentTarget.value = '';
+                          }}
+                        />
+                        {uploadingField === 'image' ? 'Uploading...' : 'Upload Card Image'}
+                      </label>
+                    </div>
                   </div>
                   <div>
                     <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-yellow-200/70">Banner URL (optional)</label>
-                    <input value={draft.bannerImage || ''} onChange={(e) => setDraft({ ...draft, bannerImage: e.target.value })} className={fieldClass} placeholder="https://..." />
+                    <div className="space-y-2">
+                      <input value={draft.bannerImage || ''} onChange={(e) => setDraft({ ...draft, bannerImage: e.target.value })} className={fieldClass} placeholder="https://... or upload below" />
+                      <label className={`${subtleButtonClass} flex cursor-pointer items-center justify-center`}>
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) void uploadDraftImage(file, 'bannerImage');
+                            e.currentTarget.value = '';
+                          }}
+                        />
+                        {uploadingField === 'bannerImage' ? 'Uploading...' : 'Upload Banner'}
+                      </label>
+                    </div>
                   </div>
                   <div>
                     <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-yellow-200/70">Feature Bullets</label>
@@ -1719,10 +1789,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
                         className={`${fieldCompactClass} md:col-span-6`}
                         placeholder="Tier image URL (optional)"
                       />
+                      <label className={`${subtleButtonClass} cursor-pointer text-center md:col-span-2`}>
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) void uploadTierImage(file, idx);
+                            e.currentTarget.value = '';
+                          }}
+                        />
+                        {uploadingField === `tier-${idx}` ? 'Uploading...' : 'Upload Tier Image'}
+                      </label>
                       <input
                         value={tier.description || ''}
                         onChange={(e) => setTierDrafts((prev) => prev.map((item, i) => (i === idx ? { ...item, description: e.target.value } : item)))}
-                        className={`${fieldCompactClass} md:col-span-4`}
+                        className={`${fieldCompactClass} md:col-span-2`}
                         placeholder="Tier description (optional)"
                       />
                       <div className="rounded border border-[#facc15]/20 bg-[#090909] px-2 py-1 text-xs md:col-span-2">
@@ -1742,7 +1825,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
     </div>
   );
 };
-
 
 
 

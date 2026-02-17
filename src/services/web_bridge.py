@@ -10,6 +10,7 @@ import hashlib
 import secrets
 import smtplib
 import ssl
+import mimetypes
 from email.message import EmailMessage
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
@@ -139,6 +140,15 @@ class WebsiteBridgeServer:
         self.products_file = self.data_dir / "shop_products.json"
         self.orders_file = self.data_dir / "shop_orders.json"
         self.pending_payments_file = self.data_dir / "shop_pending_payments.json"
+        self.media_library_file = self.data_dir / "shop_media_library.json"
+        self.image_upload_max_bytes = max(
+            64 * 1024,
+            self._to_int(os.getenv("SHOP_IMAGE_UPLOAD_MAX_BYTES"), default=2 * 1024 * 1024) or (2 * 1024 * 1024),
+        )
+        self.image_upload_max_entries = max(
+            1,
+            self._to_int(os.getenv("SHOP_IMAGE_UPLOAD_MAX_ENTRIES"), default=250) or 250,
+        )
         self.state_keys = (
             "settings",
             "users",
@@ -167,6 +177,7 @@ class WebsiteBridgeServer:
         self._ensure_json_file(self.products_file, [])
         self._ensure_json_file(self.orders_file, [])
         self._ensure_json_file(self.pending_payments_file, {})
+        self._ensure_json_file(self.media_library_file, [])
 
         self.app = web.Application(
             middlewares=[
@@ -205,6 +216,7 @@ class WebsiteBridgeServer:
         self.app.router.add_get("/shop/inventory/{product_id}", self.shop_get_inventory)
         self.app.router.add_post("/shop/inventory/add", self.shop_add_inventory)
         self.app.router.add_post("/shop/stock", self.shop_update_stock)
+        self.app.router.add_post("/shop/media/upload", self.shop_upload_media)
         self.app.router.add_post("/shop/payments/create", self.shop_create_payment)
         self.app.router.add_post("/shop/payments/confirm", self.shop_confirm_payment)
         self.app.router.add_post("/shop/buy", self.shop_buy)
@@ -322,6 +334,8 @@ class WebsiteBridgeServer:
         if path == "/shop/inventory/add":
             return True
         if path == "/shop/stock":
+            return True
+        if path == "/shop/media/upload":
             return True
         if path.startswith("/shop/orders/") and method == "POST":
             return True
@@ -1455,6 +1469,93 @@ class WebsiteBridgeServer:
         await self._save_orders(orders)
         return web.json_response({"ok": True, "order": target})
 
+    async def shop_upload_media(self, request: web.Request):
+        content_type = str(request.content_type or "").strip().lower()
+        if "multipart/form-data" not in content_type:
+            return web.json_response({"ok": False, "message": "multipart/form-data is required"}, status=400)
+
+        try:
+            reader = await request.multipart()
+        except Exception:
+            return web.json_response({"ok": False, "message": "invalid multipart body"}, status=400)
+
+        file_part = None
+        while True:
+            part = await reader.next()
+            if part is None:
+                break
+            if str(getattr(part, "name", "")).strip().lower() == "file":
+                file_part = part
+                break
+
+        if file_part is None:
+            return web.json_response({"ok": False, "message": "file field is required"}, status=400)
+
+        file_name = str(getattr(file_part, "filename", "") or "").strip()
+        if not file_name:
+            return web.json_response({"ok": False, "message": "file name is required"}, status=400)
+
+        part_content_type = str(file_part.headers.get("Content-Type", "") or "").split(";", 1)[0].strip().lower()
+        if not part_content_type:
+            guessed, _ = mimetypes.guess_type(file_name)
+            part_content_type = str(guessed or "").strip().lower()
+        allowed_types = {"image/png", "image/jpeg", "image/webp", "image/gif", "image/svg+xml"}
+        if part_content_type not in allowed_types:
+            return web.json_response({"ok": False, "message": "unsupported image type"}, status=400)
+
+        chunks: list[bytes] = []
+        total = 0
+        while True:
+            chunk = await file_part.read_chunk(size=64 * 1024)
+            if not chunk:
+                break
+            total += len(chunk)
+            if total > self.image_upload_max_bytes:
+                return web.json_response(
+                    {
+                        "ok": False,
+                        "message": f"file too large (max {self.image_upload_max_bytes} bytes)",
+                    },
+                    status=413,
+                )
+            chunks.append(chunk)
+
+        if total <= 0:
+            return web.json_response({"ok": False, "message": "uploaded file is empty"}, status=400)
+
+        raw = b"".join(chunks)
+        encoded = base64.b64encode(raw).decode("ascii")
+        data_url = f"data:{part_content_type};base64,{encoded}"
+        created_at = datetime.now(timezone.utc).isoformat()
+        asset_id = f"img-{int(datetime.now(timezone.utc).timestamp() * 1000)}-{secrets.token_hex(4)}"
+        asset = {
+            "id": asset_id,
+            "filename": file_name,
+            "mimeType": part_content_type,
+            "size": total,
+            "createdAt": created_at,
+            "dataUrl": data_url,
+        }
+
+        library = await self._load_media_library()
+        library = [asset] + [row for row in library if isinstance(row, dict) and str(row.get("id", "")) != asset_id]
+        library = library[: self.image_upload_max_entries]
+        await self._save_media_library(library)
+
+        return web.json_response(
+            {
+                "ok": True,
+                "asset": {
+                    "id": asset_id,
+                    "filename": file_name,
+                    "mimeType": part_content_type,
+                    "size": total,
+                    "createdAt": created_at,
+                    "url": data_url,
+                },
+            }
+        )
+
     async def shop_upsert_product(self, request: web.Request):
         payload = await self._safe_json(request)
         if payload is None:
@@ -2519,9 +2620,10 @@ class WebsiteBridgeServer:
       max-width: 1280px;
       margin: 0 auto;
       padding: 0 18px;
-      text-align: left;
+      text-align: center;
     }}
     .mail-card {{
+      display: inline-block;
       width: 100%;
       max-width: 1080px;
       margin: 0 auto;
@@ -2533,6 +2635,7 @@ class WebsiteBridgeServer:
         0 20px 55px rgba(0, 0, 0, 0.66),
         0 0 0 1px rgba(250, 204, 21, 0.08) inset;
       overflow: hidden;
+      text-align: left;
     }}
     .mail-header {{
       padding: 34px 42px 24px;
@@ -2577,6 +2680,9 @@ class WebsiteBridgeServer:
       color: #facc15;
     }}
     .otp-code {{
+      display: flex;
+      align-items: center;
+      justify-content: center;
       margin-top: 14px;
       border-radius: 16px;
       border: 1px solid rgba(250, 204, 21, 0.35);
@@ -3635,6 +3741,7 @@ class WebsiteBridgeServer:
         await self._seed_kv_from_json("products", self.products_file, [])
         await self._seed_kv_from_json("orders", self.orders_file, [])
         await self._seed_kv_from_json("pending_payments", self.pending_payments_file, {})
+        await self._seed_kv_from_json("media_library", self.media_library_file, [])
         for state_key in self.state_keys:
             await self._seed_kv_from_json(
                 self._state_storage_key(state_key),
@@ -3734,6 +3841,22 @@ class WebsiteBridgeServer:
             await self._db_set_json("pending_payments", payload)
             return
         self._write_json(self.pending_payments_file, payload)
+
+    async def _load_media_library(self) -> list[dict[str, Any]]:
+        if self.use_supabase_storage and self.pg_pool is not None:
+            data = await self._db_get_json("media_library", default=[])
+        else:
+            data = self._read_json(self.media_library_file, default=[])
+        if not isinstance(data, list):
+            return []
+        return [item for item in data if isinstance(item, dict)]
+
+    async def _save_media_library(self, items: list[dict[str, Any]]) -> None:
+        cleaned = [item for item in items if isinstance(item, dict)]
+        if self.use_supabase_storage and self.pg_pool is not None:
+            await self._db_set_json("media_library", cleaned)
+            return
+        self._write_json(self.media_library_file, cleaned)
 
     def _read_json(self, path: Path, default: Any) -> Any:
         try:
