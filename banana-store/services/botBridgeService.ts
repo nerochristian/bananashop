@@ -7,39 +7,23 @@ interface BridgeResponse {
   message?: string;
 }
 
-const API_BASE_URL = ((import.meta.env.VITE_BOT_API_URL as string | undefined) || '').trim().replace(/\/$/, '');
-const API_PREFIX = ((import.meta.env.VITE_BOT_API_PREFIX as string | undefined) || '/api/bot').trim() || '/api/bot';
-const API_KEY = (import.meta.env.VITE_BOT_API_KEY as string | undefined) || '';
-const API_KEY_HEADER = ((import.meta.env.VITE_BOT_API_KEY_HEADER as string | undefined) || 'x-api-key').toLowerCase();
-const API_AUTH_SCHEME = (import.meta.env.VITE_BOT_API_AUTH_SCHEME as string | undefined) || '';
-const API_TIMEOUT_MS = Number(import.meta.env.VITE_BOT_API_TIMEOUT_MS || 10000);
-
-const buildHeaders = (): HeadersInit => {
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json'
-  };
-
-  if (API_KEY) {
-    const value = API_AUTH_SCHEME ? `${API_AUTH_SCHEME} ${API_KEY}` : API_KEY;
-    headers[API_KEY_HEADER] = value;
-  }
-
-  return headers;
-};
+const STORE_API_BASE_URL = ((import.meta.env.VITE_STORE_API_URL as string | undefined) || '').trim().replace(/\/$/, '');
+const STORE_API_PREFIX = ((import.meta.env.VITE_STORE_API_PREFIX as string | undefined) || '/shop').trim() || '/shop';
+const STORE_API_TIMEOUT_MS = Number(import.meta.env.VITE_STORE_API_TIMEOUT_MS || 10000);
 
 const post = async <T>(path: string, body: unknown): Promise<T> => {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
-  const url = API_BASE_URL ? `${API_BASE_URL}${path}` : path;
+  const timeoutId = setTimeout(() => controller.abort(), STORE_API_TIMEOUT_MS);
+  const url = STORE_API_BASE_URL ? `${STORE_API_BASE_URL}${path}` : path;
 
   let response: Response;
   try {
     response = await fetch(url, {
       method: 'POST',
-      headers: buildHeaders(),
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
       signal: controller.signal,
-      credentials: API_BASE_URL ? 'omit' : 'same-origin'
+      credentials: STORE_API_BASE_URL ? 'omit' : 'same-origin',
     });
   } finally {
     clearTimeout(timeoutId);
@@ -55,11 +39,12 @@ const post = async <T>(path: string, body: unknown): Promise<T> => {
 
 export const BotBridgeService = {
   askBot: async (message: string, products: Product[]): Promise<string> => {
-    const data = await post<BridgeResponse>(`${API_PREFIX}/chat`, { message, products });
+    const data = await post<BridgeResponse>(`${STORE_API_PREFIX}/chat`, { message, products });
     return data.reply || 'I could not generate a recommendation right now. Please try again.';
   },
 
-  sendOrder: async (order: Order, user: User | null, paymentMethod: string): Promise<void> => {
-    await post<BridgeResponse>(`${API_PREFIX}/order`, { order, user, paymentMethod });
-  }
+  // Legacy shim for older callers; order logs are now emitted server-side at purchase/confirm.
+  sendOrder: async (_order: Order, _user: User | null, _paymentMethod: string): Promise<void> => {
+    return;
+  },
 };

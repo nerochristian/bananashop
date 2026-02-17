@@ -184,7 +184,8 @@ export const StorageService = {
       users.push({
         id: 'admin-1337',
         email: 'powerpoki7@gmail.com',
-        password: 'Pokemon2020!',
+        // Local fallback mode only; production auth is server-side via Shop API.
+        password: randomId('local-admin-password'),
         role: 'admin',
         createdAt: new Date().toISOString(),
       });

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Mail, Lock, UserPlus, ArrowLeft, LayoutGrid, LogIn, ShieldCheck, KeyRound } from 'lucide-react';
-import { User } from '../services/storageService';
+import type { User } from '../services/storageService';
 import { BRAND_CONFIG } from '../config/brandConfig';
 import { ShopApiService } from '../services/shopApiService';
 

@@ -2,8 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { X, ShieldCheck, Zap, CreditCard, Wallet, Bitcoin, CheckCircle2, ArrowRight, Shield } from 'lucide-react';
 import { CartItem, Product } from '../types';
-import { Order, User } from '../services/storageService';
-import { BotBridgeService } from '../services/botBridgeService';
+import type { Order, User } from '../services/storageService';
 import { ShopApiService } from '../services/shopApiService';
 
 interface CheckoutProps {
@@ -85,7 +84,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ isOpen, onClose, items, curr
       try {
         const successUrl = `${window.location.origin}${window.location.pathname}`;
         const cancelUrl = `${window.location.origin}${window.location.pathname}`;
-        const payment = await ShopApiService.createPayment(order, currentUser, paymentMethod, successUrl, cancelUrl);
+        const payment = await ShopApiService.createPayment(order, paymentMethod, successUrl, cancelUrl);
         if (!payment.ok) {
           throw new Error('Failed to create payment session.');
         }
@@ -109,7 +108,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ isOpen, onClose, items, curr
           window.open(payment.checkoutUrl, '_blank', 'noopener,noreferrer');
         }
 
-        const result = await ShopApiService.buy(order, currentUser, paymentMethod, true);
+        const result = await ShopApiService.buy(order, paymentMethod, true);
         if (!result.ok) {
           throw new Error('Purchase failed.');
         }
@@ -125,9 +124,6 @@ export const Checkout: React.FC<CheckoutProps> = ({ isOpen, onClose, items, curr
           setUpdatedProducts(undefined);
         }
 
-        BotBridgeService.sendOrder(finalOrder, currentUser, paymentMethod).catch((bridgeError) => {
-          console.error('Failed to notify bot about completed order:', bridgeError);
-        });
         setStep('success');
       } catch (purchaseError) {
         console.error('Checkout failed:', purchaseError);

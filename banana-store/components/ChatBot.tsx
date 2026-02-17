@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MessageSquare, X, Send, Bot } from 'lucide-react';
 import { ChatMessage, Product } from '../types';
-import { getStreamingRecommendation } from '../services/geminiService';
 import { BotBridgeService } from '../services/botBridgeService';
 import { BRAND_CONFIG } from '../config/brandConfig';
 
@@ -39,14 +38,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products }) => {
     setIsTyping(true);
 
     try {
-      let responseText = '';
-      try {
-        responseText = await BotBridgeService.askBot(prompt, products);
-      } catch (bridgeError) {
-        console.warn('Bot bridge unavailable, using Gemini fallback.', bridgeError);
-        responseText = await getStreamingRecommendation(prompt, products);
-      }
-
+      const responseText = await BotBridgeService.askBot(prompt, products);
       const botMsg: ChatMessage = { id: (Date.now() + 1).toString(), role: 'model', text: responseText, timestamp: new Date() };
       setMessages(prev => [...prev, botMsg]);
     } catch (error) {

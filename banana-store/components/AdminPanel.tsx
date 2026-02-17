@@ -24,7 +24,7 @@ import {
   X,
 } from 'lucide-react';
 import { AdminSettings, Product, ProductTier, ServiceType } from '../types';
-import {
+import type {
   BlacklistEntry,
   Category,
   Coupon,

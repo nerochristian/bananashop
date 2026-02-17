@@ -5,6 +5,8 @@ import os
 import re
 import fnmatch
 import json
+import base64
+import hashlib
 import secrets
 import smtplib
 import ssl
@@ -39,10 +41,32 @@ class WebsiteBridgeServer:
         self.order_channel_id = self._env_int("WEBSITE_ORDER_CHANNEL_ID") or self.events_channel_id
         self.chat_channel_id = self._env_int("WEBSITE_CHAT_CHANNEL_ID") or self.events_channel_id
         self.admin_email = (os.getenv("ADMIN_EMAIL") or "powerpoki7@gmail.com").strip().lower()
-        self.admin_password = (os.getenv("ADMIN_PASSWORD") or "Pokemon2020!").strip()
+        self.admin_password = (os.getenv("ADMIN_PASSWORD") or "").strip()
+        self.admin_password_configured = bool(self.admin_password)
+        if not self.admin_password_configured:
+            logger.warning(
+                "ADMIN_PASSWORD not set; existing admin password hash will be preserved."
+                " Set ADMIN_PASSWORD to enforce/reset the admin credential."
+            )
         self.login_2fa_enabled = self._env_bool("AUTH_2FA_ENABLED", default=False)
         self.login_otp_ttl_seconds = max(60, self._to_int(os.getenv("AUTH_2FA_TTL_SECONDS"), default=300) or 300)
         self.login_otp_max_attempts = max(1, self._to_int(os.getenv("AUTH_2FA_MAX_ATTEMPTS"), default=5) or 5)
+        self.login_otp_min_interval_seconds = max(
+            0, self._to_int(os.getenv("AUTH_2FA_MIN_INTERVAL_SECONDS"), default=30) or 30
+        )
+        self.login_otp_last_sent_at: dict[str, datetime] = {}
+        self.auth_session_ttl_seconds = max(
+            300, self._to_int(os.getenv("AUTH_SESSION_TTL_SECONDS"), default=86400) or 86400
+        )
+        self.auth_session_secret = (os.getenv("AUTH_SESSION_SECRET") or "").strip()
+        if not self.auth_session_secret:
+            self.auth_session_secret = secrets.token_urlsafe(48)
+            logger.warning(
+                "AUTH_SESSION_SECRET not set; using ephemeral in-memory secret."
+                " Persistent sessions will be invalidated on restart. Set AUTH_SESSION_SECRET."
+            )
+        bootstrap_password = self.admin_password if self.admin_password_configured else secrets.token_urlsafe(24)
+        self.bootstrap_admin_password_hash = self._hash_password(bootstrap_password)
         self.login_otp_sessions: dict[str, dict[str, Any]] = {}
         self.discord_link_required_on_login = self._env_bool("DISCORD_REQUIRE_LINK_ON_LOGIN", default=True)
         self.discord_link_token_ttl_seconds = max(
@@ -156,6 +180,7 @@ class WebsiteBridgeServer:
         self.app.router.add_post("/api/bot/chat", self.chat)
         self.app.router.add_post("/api/bot/order", self.order)
         self.app.router.add_get("/shop/health", self.shop_health)
+        self.app.router.add_post("/shop/chat", self.chat)
         self.app.router.add_get("/shop/products", self.shop_products)
         self.app.router.add_get("/shop/products/{product_id}", self.shop_get_product)
         self.app.router.add_get("/shop/invoices/{invoice_id}", self.shop_get_invoice)
@@ -211,14 +236,35 @@ class WebsiteBridgeServer:
         if request.method == "OPTIONS":
             return await handler(request)
 
-        if request.path in {"/api/bot/health", "/shop/health", "/shop/auth/discord/callback"}:
+        path = request.path
+
+        if path.startswith("/api/bot"):
+            if path == "/api/bot/health":
+                return await handler(request)
+            if not self._has_valid_api_key(request):
+                return web.json_response({"ok": False, "message": "unauthorized"}, status=401)
             return await handler(request)
 
-        if request.method == "GET" and request.path in {"/shop/products", "/shop/payment-methods"}:
+        if not path.startswith("/shop"):
             return await handler(request)
 
+        if self._is_shop_public_request(request):
+            return await handler(request)
+
+        shop_user = self._parse_shop_session_from_request(request)
+        if not isinstance(shop_user, dict):
+            return web.json_response({"ok": False, "message": "unauthorized"}, status=401)
+
+        request["shop_user"] = shop_user
+        if self._is_shop_admin_request(request):
+            role = str(shop_user.get("role") or "").strip().lower()
+            if role != "admin":
+                return web.json_response({"ok": False, "message": "forbidden"}, status=403)
+        return await handler(request)
+
+    def _has_valid_api_key(self, request: web.Request) -> bool:
         if not self.api_key:
-            return await handler(request)
+            return True
 
         received_key = request.headers.get(self.api_key_header, "").strip()
         if self.api_auth_scheme and received_key.lower().startswith(f"{self.api_auth_scheme} "):
@@ -230,13 +276,154 @@ class WebsiteBridgeServer:
         elif not received_key and auth_header.lower().startswith("bearer "):
             received_key = auth_header[7:].strip()
 
-        if not received_key or not hmac.compare_digest(received_key, self.api_key):
-            return web.json_response(
-                {"ok": False, "message": "unauthorized"},
-                status=401,
-            )
+        if not received_key:
+            return False
+        return hmac.compare_digest(received_key, self.api_key)
 
-        return await handler(request)
+    def _is_shop_public_request(self, request: web.Request) -> bool:
+        path = request.path
+        if path in {
+            "/shop/health",
+            "/shop/auth/login",
+            "/shop/auth/verify-otp",
+            "/shop/auth/register",
+            "/shop/auth/discord/callback",
+        }:
+            return True
+        if request.method == "GET" and (
+            path == "/shop/products"
+            or path.startswith("/shop/products/")
+            or path == "/shop/payment-methods"
+        ):
+            return True
+        if request.method == "POST" and path == "/shop/licenses/validate":
+            return True
+        if request.method == "POST" and path == "/shop/chat":
+            return True
+        return False
+
+    def _is_shop_admin_request(self, request: web.Request) -> bool:
+        path = request.path
+        method = request.method.upper()
+        if path.startswith("/shop/admin/"):
+            return True
+        if path == "/shop/analytics":
+            return True
+        if path.startswith("/shop/state/"):
+            return True
+        if path == "/shop/coupons":
+            return True
+        if path == "/shop/products" and method == "POST":
+            return True
+        if path.startswith("/shop/products/") and method == "DELETE":
+            return True
+        if path.startswith("/shop/inventory/"):
+            return True
+        if path == "/shop/inventory/add":
+            return True
+        if path == "/shop/stock":
+            return True
+        if path.startswith("/shop/orders/") and method == "POST":
+            return True
+        return False
+
+    @staticmethod
+    def _b64url_encode(raw: bytes) -> str:
+        return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+
+    @staticmethod
+    def _b64url_decode(value: str) -> Optional[bytes]:
+        clean = str(value or "").strip()
+        if not clean:
+            return None
+        padding = "=" * (-len(clean) % 4)
+        try:
+            return base64.urlsafe_b64decode(clean + padding)
+        except Exception:
+            return None
+
+    def _extract_bearer_token(self, request: web.Request) -> str:
+        auth_header = request.headers.get("authorization", "").strip()
+        if auth_header.lower().startswith("bearer "):
+            return auth_header[7:].strip()
+        return ""
+
+    def _sign_session_payload(self, payload_b64: str) -> str:
+        digest = hmac.new(
+            self.auth_session_secret.encode("utf-8"),
+            payload_b64.encode("utf-8"),
+            hashlib.sha256,
+        ).digest()
+        return self._b64url_encode(digest)
+
+    def _issue_shop_session_token(self, user: dict[str, Any]) -> str:
+        now = int(datetime.now(timezone.utc).timestamp())
+        payload = {
+            "uid": str(user.get("id") or "").strip(),
+            "email": str(user.get("email") or "").strip().lower(),
+            "role": "admin" if str(user.get("role") or "").strip().lower() == "admin" else "user",
+            "iat": now,
+            "exp": now + self.auth_session_ttl_seconds,
+        }
+        payload_b64 = self._b64url_encode(json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8"))
+        signature = self._sign_session_payload(payload_b64)
+        return f"{payload_b64}.{signature}"
+
+    def _parse_shop_session_token(self, token: str) -> Optional[dict[str, Any]]:
+        raw_token = str(token or "").strip()
+        if "." not in raw_token:
+            return None
+        payload_b64, signature = raw_token.split(".", 1)
+        expected_signature = self._sign_session_payload(payload_b64)
+        if not signature or not hmac.compare_digest(signature, expected_signature):
+            return None
+        payload_raw = self._b64url_decode(payload_b64)
+        if payload_raw is None:
+            return None
+        try:
+            payload = json.loads(payload_raw.decode("utf-8"))
+        except Exception:
+            return None
+        if not isinstance(payload, dict):
+            return None
+        uid = str(payload.get("uid") or "").strip()
+        email = str(payload.get("email") or "").strip().lower()
+        role = "admin" if str(payload.get("role") or "").strip().lower() == "admin" else "user"
+        exp = self._to_int(payload.get("exp"), default=0) or 0
+        now = int(datetime.now(timezone.utc).timestamp())
+        if not uid or not email or exp <= now:
+            return None
+        return {"id": uid, "email": email, "role": role}
+
+    def _parse_shop_session_from_request(self, request: web.Request) -> Optional[dict[str, Any]]:
+        token = self._extract_bearer_token(request)
+        if not token:
+            return None
+        return self._parse_shop_session_token(token)
+
+    @staticmethod
+    def _shop_user_from_request(request: web.Request) -> Optional[dict[str, Any]]:
+        user = request.get("shop_user")
+        if isinstance(user, dict):
+            return user
+        return None
+
+    async def _get_public_user_by_identity(self, user_id: str, email: str) -> Optional[dict[str, Any]]:
+        users = await self._load_state("users")
+        if not isinstance(users, list):
+            users = []
+        users = self._ensure_default_admin_user([item for item in users if isinstance(item, dict)])
+        normalized_user_id = str(user_id or "").strip()
+        normalized_email = str(email or "").strip().lower()
+        for user in users:
+            row_user_id = str(user.get("id") or "").strip()
+            row_email = str(user.get("email") or "").strip().lower()
+            if row_user_id != normalized_user_id or row_email != normalized_email:
+                continue
+            public_user = dict(user)
+            public_user.pop("password", None)
+            return public_user
+        return None
 
     async def _handle_options(self, request: web.Request):
         return web.Response(status=204)
@@ -349,6 +536,13 @@ class WebsiteBridgeServer:
         return web.json_response({"ok": False, "message": "product not found"}, status=404)
 
     async def shop_get_invoice(self, request: web.Request):
+        auth_user = self._shop_user_from_request(request)
+        if not isinstance(auth_user, dict):
+            return web.json_response({"ok": False, "message": "unauthorized"}, status=401)
+        is_admin = str(auth_user.get("role") or "").strip().lower() == "admin"
+        auth_user_id = str(auth_user.get("id") or "").strip()
+        auth_user_email = str(auth_user.get("email") or "").strip().lower()
+
         invoice_id = str(request.match_info.get("invoice_id", "")).strip()
         if not invoice_id:
             return web.json_response({"ok": False, "message": "invoice id is required"}, status=400)
@@ -356,12 +550,28 @@ class WebsiteBridgeServer:
         orders = await self._load_orders()
         for order in orders:
             if str(order.get("id", "")).strip() == invoice_id:
+                if not is_admin:
+                    user_payload = order.get("user")
+                    user_data = user_payload if isinstance(user_payload, dict) else {}
+                    row_user_id = str(order.get("userId") or "").strip()
+                    row_email = str(user_data.get("email") or "").strip().lower()
+                    matches_user_id = bool(auth_user_id and row_user_id == auth_user_id)
+                    matches_user_email = bool(auth_user_email and row_email == auth_user_email)
+                    if not matches_user_id and not matches_user_email:
+                        return web.json_response({"ok": False, "message": "forbidden"}, status=403)
                 return web.json_response({"ok": True, "invoice": order, "data": order})
         return web.json_response({"ok": False, "message": "invoice not found"}, status=404)
 
     async def shop_orders(self, request: web.Request):
-        user_id = str(request.query.get("userId", "")).strip()
-        user_email = str(request.query.get("userEmail", "")).strip().lower()
+        auth_user = self._shop_user_from_request(request)
+        if not isinstance(auth_user, dict):
+            return web.json_response({"ok": False, "message": "unauthorized"}, status=401)
+
+        is_admin = str(auth_user.get("role") or "").strip().lower() == "admin"
+        query_user_id = str(request.query.get("userId", "")).strip()
+        query_user_email = str(request.query.get("userEmail", "")).strip().lower()
+        auth_user_id = str(auth_user.get("id") or "").strip()
+        auth_user_email = str(auth_user.get("email") or "").strip().lower()
         status_filter = str(request.query.get("status", "")).strip().lower()
 
         orders = await self._load_orders()
@@ -372,14 +582,22 @@ class WebsiteBridgeServer:
             row_status = str(order.get("status") or "pending").strip().lower()
             if status_filter and row_status != status_filter:
                 continue
-            if user_id and str(order.get("userId") or "").strip() != user_id:
-                continue
 
             user_payload = order.get("user")
             user_data = user_payload if isinstance(user_payload, dict) else {}
+            row_user_id = str(order.get("userId") or "").strip()
             row_email = str(user_data.get("email") or "").strip().lower()
-            if user_email and row_email != user_email:
-                continue
+
+            if is_admin:
+                if query_user_id and row_user_id != query_user_id:
+                    continue
+                if query_user_email and row_email != query_user_email:
+                    continue
+            else:
+                matches_user_id = bool(auth_user_id and row_user_id == auth_user_id)
+                matches_user_email = bool(auth_user_email and row_email == auth_user_email)
+                if not matches_user_id and not matches_user_email:
+                    continue
 
             rows.append(order)
 
@@ -446,9 +664,26 @@ class WebsiteBridgeServer:
         for user in users:
             if str(user.get("email", "")).strip().lower() != email:
                 continue
-            if str(user.get("password", "")).strip() != password:
+            if not self._verify_password(password, str(user.get("password", "")).strip()):
                 continue
             if self._is_login_2fa_ready():
+                if self.login_otp_min_interval_seconds > 0:
+                    now = datetime.now(timezone.utc)
+                    last_sent_at = self.login_otp_last_sent_at.get(email)
+                    if isinstance(last_sent_at, datetime):
+                        if last_sent_at.tzinfo is None:
+                            last_sent_at = last_sent_at.replace(tzinfo=timezone.utc)
+                        elapsed = (now - last_sent_at).total_seconds()
+                        if elapsed < self.login_otp_min_interval_seconds:
+                            retry_after = max(1, int(self.login_otp_min_interval_seconds - elapsed))
+                            return web.json_response(
+                                {
+                                    "ok": False,
+                                    "message": "please wait before requesting another verification code",
+                                    "retryAfterSeconds": retry_after,
+                                },
+                                status=429,
+                            )
                 otp_token = secrets.token_urlsafe(24)
                 otp_code = f"{secrets.randbelow(1_000_000):06d}"
                 self.login_otp_sessions[otp_token] = {
@@ -463,6 +698,7 @@ class WebsiteBridgeServer:
                     self.login_otp_sessions.pop(otp_token, None)
                     await self._append_security_log(f"2FA OTP delivery failed for: {email}", "WARNING")
                     return web.json_response({"ok": False, "message": "failed to send OTP email"}, status=502)
+                self.login_otp_last_sent_at[email] = datetime.now(timezone.utc)
                 await self._append_security_log(f"2FA OTP issued for: {email}", "SUCCESS")
                 return web.json_response(
                     {
@@ -479,11 +715,13 @@ class WebsiteBridgeServer:
             discord_link_token = self._issue_discord_link_token(public_user)
             has_discord_link = bool(str(public_user.get("discordId") or "").strip())
             requires_discord = bool(self.discord_link_required_on_login and self._is_discord_oauth_ready() and not has_discord_link)
+            session_token = self._issue_shop_session_token(public_user)
             await self._append_security_log(f"User Authentication Successful: {email}", "SUCCESS")
             return web.json_response(
                 {
                     "ok": True,
                     "user": public_user,
+                    "sessionToken": session_token,
                     "discordLinkToken": discord_link_token,
                     "requiresDiscord": requires_discord,
                     "message": "Connect Discord to continue" if requires_discord else "",
@@ -535,11 +773,13 @@ class WebsiteBridgeServer:
             discord_link_token = self._issue_discord_link_token(public_user)
             has_discord_link = bool(str(public_user.get("discordId") or "").strip())
             requires_discord = bool(self.discord_link_required_on_login and self._is_discord_oauth_ready() and not has_discord_link)
+            session_token = self._issue_shop_session_token(public_user)
             await self._append_security_log(f"User 2FA Authentication Successful: {email}", "SUCCESS")
             return web.json_response(
                 {
                     "ok": True,
                     "user": public_user,
+                    "sessionToken": session_token,
                     "discordLinkToken": discord_link_token,
                     "requiresDiscord": requires_discord,
                     "message": "Connect Discord to continue" if requires_discord else "",
@@ -568,7 +808,7 @@ class WebsiteBridgeServer:
         user = {
             "id": f"user-{int(datetime.now(timezone.utc).timestamp() * 1000)}",
             "email": email,
-            "password": password,
+            "password": self._hash_password(password),
             "role": "user",
             "createdAt": datetime.now(timezone.utc).isoformat(),
             "discordId": "",
@@ -582,17 +822,23 @@ class WebsiteBridgeServer:
 
         public_user = dict(user)
         public_user.pop("password", None)
-        return web.json_response({"ok": True, "user": public_user})
+        return web.json_response(
+            {
+                "ok": True,
+                "user": public_user,
+                "sessionToken": self._issue_shop_session_token(public_user),
+            }
+        )
 
     async def shop_auth_discord_link_token(self, request: web.Request):
-        payload = await self._safe_json(request)
-        if payload is None:
-            return web.json_response({"ok": False, "message": "invalid json body"}, status=400)
+        auth_user = self._shop_user_from_request(request)
+        if not isinstance(auth_user, dict):
+            return web.json_response({"ok": False, "message": "unauthorized"}, status=401)
 
-        user_id = str(payload.get("userId") or "").strip()
-        email = str(payload.get("email") or "").strip().lower()
+        user_id = str(auth_user.get("id") or "").strip()
+        email = str(auth_user.get("email") or "").strip().lower()
         if not user_id or not email:
-            return web.json_response({"ok": False, "message": "user id and email are required"}, status=400)
+            return web.json_response({"ok": False, "message": "invalid session user"}, status=401)
 
         users = await self._load_state("users")
         if not isinstance(users, list):
@@ -617,6 +863,10 @@ class WebsiteBridgeServer:
         return web.json_response({"ok": True, "linkToken": link_token})
 
     async def shop_auth_discord_connect_url(self, request: web.Request):
+        auth_user = self._shop_user_from_request(request)
+        if not isinstance(auth_user, dict):
+            return web.json_response({"ok": False, "message": "unauthorized"}, status=401)
+
         payload = await self._safe_json(request)
         if payload is None:
             return web.json_response({"ok": False, "message": "invalid json body"}, status=400)
@@ -634,6 +884,10 @@ class WebsiteBridgeServer:
         token_row = self.discord_link_tokens.get(link_token)
         if not isinstance(token_row, dict):
             return web.json_response({"ok": False, "message": "invalid or expired link token"}, status=401)
+        if str(token_row.get("userId") or "").strip() != str(auth_user.get("id") or "").strip():
+            return web.json_response({"ok": False, "message": "link token does not belong to current user"}, status=403)
+        if str(token_row.get("email") or "").strip().lower() != str(auth_user.get("email") or "").strip().lower():
+            return web.json_response({"ok": False, "message": "link token does not belong to current user"}, status=403)
 
         normalized_return_url = self._sanitize_discord_return_url(return_url)
         state = secrets.token_urlsafe(24)
@@ -824,14 +1078,14 @@ class WebsiteBridgeServer:
         )
 
     async def shop_auth_discord_unlink(self, request: web.Request):
-        payload = await self._safe_json(request)
-        if payload is None:
-            return web.json_response({"ok": False, "message": "invalid json body"}, status=400)
+        auth_user = self._shop_user_from_request(request)
+        if not isinstance(auth_user, dict):
+            return web.json_response({"ok": False, "message": "unauthorized"}, status=401)
 
-        user_id = str(payload.get("userId") or "").strip()
-        email = str(payload.get("email") or "").strip().lower()
+        user_id = str(auth_user.get("id") or "").strip()
+        email = str(auth_user.get("email") or "").strip().lower()
         if not user_id or not email:
-            return web.json_response({"ok": False, "message": "user id and email are required"}, status=400)
+            return web.json_response({"ok": False, "message": "invalid session user"}, status=401)
 
         users = await self._load_state("users")
         if not isinstance(users, list):
@@ -1464,19 +1718,102 @@ class WebsiteBridgeServer:
 
         return web.json_response({"ok": False, "message": "product not found"}, status=404)
 
+    async def _prepare_order_items(
+        self, raw_items: Any
+    ) -> tuple[Optional[list[dict[str, Any]]], float, Optional[web.Response]]:
+        if not isinstance(raw_items, list) or not raw_items:
+            return None, 0.0, web.json_response({"ok": False, "message": "order items are required"}, status=400)
+
+        products = await self._load_products()
+        products_by_id = {str(product.get("id")): dict(product) for product in products if isinstance(product, dict)}
+        normalized_items: list[dict[str, Any]] = []
+        computed_total = 0.0
+
+        for raw_item in raw_items:
+            if not isinstance(raw_item, dict):
+                return None, 0.0, web.json_response({"ok": False, "message": "invalid order item"}, status=400)
+
+            item_id = str(raw_item.get("productId") or raw_item.get("id") or "").strip()
+            if not str(raw_item.get("productId") or "").strip() and "::" in item_id:
+                item_id = item_id.split("::", 1)[0].strip()
+            tier_id = str(raw_item.get("tierId") or "").strip()
+            quantity = self._to_int(raw_item.get("quantity"), default=0) or 0
+            if not item_id or quantity <= 0:
+                return None, 0.0, web.json_response({"ok": False, "message": "invalid item id or quantity"}, status=400)
+
+            product = products_by_id.get(item_id)
+            if product is None:
+                return None, 0.0, web.json_response({"ok": False, "message": f"product {item_id} not found"}, status=404)
+
+            unit_price = self._to_float(product.get("price"), default=0.0) or 0.0
+            original_price = self._to_float(product.get("originalPrice"), default=0.0) or 0.0
+            display_name = str(product.get("name") or item_id).strip()
+            tier_name = ""
+            if tier_id:
+                tier = self._find_tier(product, tier_id)
+                if tier is None:
+                    return None, 0.0, web.json_response(
+                        {"ok": False, "message": f"tier {tier_id} not found for {item_id}"},
+                        status=404,
+                    )
+                tier_name = str(tier.get("name") or "").strip()
+                if tier_name:
+                    display_name = f"{display_name} {tier_name}"
+                unit_price = self._to_float(tier.get("price"), default=0.0) or 0.0
+                original_price = self._to_float(tier.get("originalPrice"), default=0.0) or 0.0
+
+            if unit_price <= 0:
+                return None, 0.0, web.json_response(
+                    {"ok": False, "message": f"invalid price configured for {display_name or item_id}"},
+                    status=400,
+                )
+
+            line_id = str(raw_item.get("id") or "").strip() or (f"{item_id}::{tier_id}" if tier_id else item_id)
+            normalized_items.append(
+                {
+                    "id": line_id,
+                    "productId": item_id,
+                    "name": display_name,
+                    "quantity": quantity,
+                    "price": round(unit_price, 2),
+                    "originalPrice": round(original_price, 2),
+                    "tierId": tier_id,
+                    "tierName": tier_name,
+                    "duration": str(raw_item.get("duration") or product.get("duration") or "").strip(),
+                    "image": str(raw_item.get("image") or product.get("image") or "").strip(),
+                }
+            )
+            computed_total += float(unit_price) * quantity
+
+        return normalized_items, round(computed_total, 2), None
+
     async def shop_buy(self, request: web.Request):
+        auth_user = self._shop_user_from_request(request)
+        if not isinstance(auth_user, dict):
+            return web.json_response({"ok": False, "message": "unauthorized"}, status=401)
+
+        session_user = await self._get_public_user_by_identity(
+            str(auth_user.get("id") or "").strip(),
+            str(auth_user.get("email") or "").strip().lower(),
+        )
+        if not isinstance(session_user, dict):
+            return web.json_response({"ok": False, "message": "user not found"}, status=401)
+
         payload = await self._safe_json(request)
         if payload is None:
             return web.json_response({"ok": False, "message": "invalid json body"}, status=400)
 
         order_data = payload.get("order", payload)
-        user_data = payload.get("user", {})
-        payment_method = str(payload.get("paymentMethod", "")).strip()
+        payment_method = str(payload.get("paymentMethod", "")).strip().lower()
         payment_verified = bool(payload.get("paymentVerified", False))
         if not isinstance(order_data, dict):
             return web.json_response({"ok": False, "message": "order payload is required"}, status=400)
-        if not isinstance(user_data, dict):
-            user_data = {}
+        prepared_items, computed_total, prepare_error = await self._prepare_order_items(order_data.get("items"))
+        if prepare_error is not None:
+            return prepare_error
+        order_payload = dict(order_data)
+        order_payload["items"] = prepared_items or []
+        order_payload["total"] = computed_total
 
         if payment_method == "card" and not payment_verified:
             return web.json_response(
@@ -1484,37 +1821,49 @@ class WebsiteBridgeServer:
                 status=402,
             )
 
-        purchase = await self._process_purchase(order_data, user_data, payment_method)
+        purchase = await self._process_purchase(order_payload, session_user, payment_method)
         if isinstance(purchase, web.Response):
             return purchase
 
         order_record, public_products = purchase
-        await self._send_order_log(order_record, user_data, payment_method)
+        await self._send_order_log(order_record, session_user, payment_method)
         return web.json_response({"ok": True, "orderId": order_record["id"], "order": order_record, "products": public_products})
 
     async def shop_create_payment(self, request: web.Request):
+        auth_user = self._shop_user_from_request(request)
+        if not isinstance(auth_user, dict):
+            return web.json_response({"ok": False, "message": "unauthorized"}, status=401)
+
+        session_user = await self._get_public_user_by_identity(
+            str(auth_user.get("id") or "").strip(),
+            str(auth_user.get("email") or "").strip().lower(),
+        )
+        if not isinstance(session_user, dict):
+            return web.json_response({"ok": False, "message": "user not found"}, status=401)
+
         payload = await self._safe_json(request)
         if payload is None:
             return web.json_response({"ok": False, "message": "invalid json body"}, status=400)
 
-        payment_method = str(payload.get("paymentMethod", "")).strip() or "card"
+        payment_method = str(payload.get("paymentMethod", "")).strip().lower() or "card"
         order_data = payload.get("order", {})
-        user_data = payload.get("user", {})
         success_url = str(payload.get("successUrl", "")).strip()
         cancel_url = str(payload.get("cancelUrl", "")).strip()
 
         if not isinstance(order_data, dict):
             return web.json_response({"ok": False, "message": "order payload is required"}, status=400)
-        if not isinstance(user_data, dict):
-            user_data = {}
-
-        total = self._to_float(order_data.get("total"), default=0.0) or 0.0
-        if total <= 0:
+        prepared_items, computed_total, prepare_error = await self._prepare_order_items(order_data.get("items"))
+        if prepare_error is not None:
+            return prepare_error
+        if computed_total <= 0:
             return web.json_response({"ok": False, "message": "order total must be greater than zero"}, status=400)
+        order_payload = dict(order_data)
+        order_payload["items"] = prepared_items or []
+        order_payload["total"] = computed_total
 
         if payment_method != "card":
             if payment_method == "crypto" and self.oxapay_merchant_api_key:
-                if total < self.oxapay_min_amount:
+                if computed_total < self.oxapay_min_amount:
                     return web.json_response(
                         {
                             "ok": False,
@@ -1525,8 +1874,8 @@ class WebsiteBridgeServer:
                 pending_token = secrets.token_urlsafe(24)
                 pending = await self._load_pending_payments()
                 pending[pending_token] = {
-                    "order": order_data,
-                    "user": user_data,
+                    "order": order_payload,
+                    "user": session_user,
                     "paymentMethod": payment_method,
                     "gateway": "oxapay",
                     "createdAt": datetime.now(timezone.utc).isoformat(),
@@ -1540,12 +1889,12 @@ class WebsiteBridgeServer:
                     f"&token={pending_token}"
                 )
 
-                order_id = str(order_data.get("id") or pending_token)
+                order_id = str(order_payload.get("id") or pending_token)
                 description = f"Order {order_id}"
-                customer_email = str(user_data.get("email") or "").strip()
+                customer_email = str(session_user.get("email") or "").strip()
                 oxapay_request_payload: dict[str, Any] = {
                     "merchant": self.oxapay_merchant_api_key,
-                    "amount": round(total, 2),
+                    "amount": round(computed_total, 2),
                     "currency": self.oxapay_currency,
                     "lifeTime": max(5, self.oxapay_lifetime_minutes),
                     "feePaidByPayer": 1,
@@ -1595,7 +1944,7 @@ class WebsiteBridgeServer:
                     if track_id:
                         pending_entry["oxapayTrackId"] = track_id
                     pending_entry["oxapayRequest"] = {
-                        "amount": round(total, 2),
+                        "amount": round(computed_total, 2),
                         "currency": self.oxapay_currency,
                         "orderId": order_id,
                     }
@@ -1624,22 +1973,20 @@ class WebsiteBridgeServer:
                     status=400,
                 )
 
-            query = urlencode({"amount": f"{total:.2f}", "order_id": str(order_data.get("id", ""))})
+            query = urlencode({"amount": f"{computed_total:.2f}", "order_id": str(order_payload.get("id", ""))})
             glue = "&" if "?" in external_url else "?"
             return web.json_response({"ok": True, "checkoutUrl": f"{external_url}{glue}{query}", "manual": True})
 
         if not self.stripe_secret_key:
             return web.json_response({"ok": False, "message": "Stripe is not configured"}, status=503)
 
-        items = order_data.get("items", [])
-        if not isinstance(items, list) or not items:
-            return web.json_response({"ok": False, "message": "order items are required"}, status=400)
+        items = order_payload.get("items", [])
 
         pending_token = secrets.token_urlsafe(24)
         pending = await self._load_pending_payments()
         pending[pending_token] = {
-            "order": order_data,
-            "user": user_data,
+            "order": order_payload,
+            "user": session_user,
             "paymentMethod": payment_method,
             "createdAt": datetime.now(timezone.utc).isoformat(),
             "completed": False,
@@ -1662,7 +2009,7 @@ class WebsiteBridgeServer:
             ("cancel_url", stripe_cancel_url),
             ("payment_method_types[]", "card"),
             ("metadata[token]", pending_token),
-            ("metadata[order_id]", str(order_data.get("id") or "")),
+            ("metadata[order_id]", str(order_payload.get("id") or "")),
         ]
 
         for idx, item in enumerate(items):
@@ -1701,6 +2048,10 @@ class WebsiteBridgeServer:
         return web.json_response({"ok": True, "checkoutUrl": checkout_url, "token": pending_token, "sessionId": session_id})
 
     async def shop_confirm_payment(self, request: web.Request):
+        auth_user = self._shop_user_from_request(request)
+        if not isinstance(auth_user, dict):
+            return web.json_response({"ok": False, "message": "unauthorized"}, status=401)
+
         payload = await self._safe_json(request)
         if payload is None:
             return web.json_response({"ok": False, "message": "invalid json body"}, status=400)
@@ -1718,7 +2069,18 @@ class WebsiteBridgeServer:
             return web.json_response({"ok": False, "message": "payment token not found"}, status=404)
         if pending_entry.get("completed"):
             return web.json_response({"ok": False, "message": "payment already processed"}, status=409)
-        payment_method = requested_method or str(pending_entry.get("paymentMethod", "")).strip().lower() or "card"
+        pending_user = pending_entry.get("user")
+        pending_user_data = pending_user if isinstance(pending_user, dict) else {}
+        pending_user_id = str(pending_user_data.get("id") or "").strip()
+        pending_user_email = str(pending_user_data.get("email") or "").strip().lower()
+        request_user_id = str(auth_user.get("id") or "").strip()
+        request_user_email = str(auth_user.get("email") or "").strip().lower()
+        if pending_user_id != request_user_id or pending_user_email != request_user_email:
+            return web.json_response({"ok": False, "message": "payment token does not belong to this user"}, status=403)
+        stored_method = str(pending_entry.get("paymentMethod", "")).strip().lower() or "card"
+        if requested_method and requested_method != stored_method:
+            return web.json_response({"ok": False, "message": "payment method mismatch"}, status=409)
+        payment_method = stored_method
 
         if payment_method == "crypto":
             if not self.oxapay_merchant_api_key:
@@ -1837,11 +2199,24 @@ class WebsiteBridgeServer:
 
         products = await self._load_products()
         order_id = str(order_data.get("id") or "").strip()
+        existing_orders = await self._load_orders()
         if order_id:
-            for existing_order in await self._load_orders():
+            for existing_order in existing_orders:
                 if str(existing_order.get("id") or "").strip() == order_id:
-                    # Idempotent confirmation: if already processed, do not consume stock twice.
-                    return existing_order, [self._public_product(product) for product in products]
+                    existing_user_id = str(existing_order.get("userId") or "").strip()
+                    existing_user_payload = existing_order.get("user")
+                    existing_user = existing_user_payload if isinstance(existing_user_payload, dict) else {}
+                    existing_email = str(existing_user.get("email") or "").strip().lower()
+                    current_user_id = str(user_data.get("id") or "").strip()
+                    current_email = str(user_data.get("email") or "").strip().lower()
+                    same_owner = bool(
+                        (current_user_id and existing_user_id == current_user_id)
+                        or (current_email and existing_email == current_email)
+                    )
+                    if same_owner:
+                        # Idempotent confirmation for same authenticated user.
+                        return existing_order, [self._public_product(product) for product in products]
+                    return web.json_response({"ok": False, "message": "duplicate order id"}, status=409)
 
         products_by_id = {str(product.get("id")): dict(product) for product in products}
         credentials: dict[str, str] = {}
@@ -1916,18 +2291,38 @@ class WebsiteBridgeServer:
         normalized_products = [self._normalize_product(product) for product in products_by_id.values()]
         await self._save_products(normalized_products)
 
+        safe_user_data = {
+            "id": str(user_data.get("id") or "").strip(),
+            "email": str(user_data.get("email") or "").strip().lower(),
+            "role": "admin" if str(user_data.get("role") or "").strip().lower() == "admin" else "user",
+            "createdAt": str(user_data.get("createdAt") or "").strip(),
+            "discordId": str(user_data.get("discordId") or "").strip(),
+            "discordUsername": str(user_data.get("discordUsername") or "").strip(),
+            "discordAvatar": str(user_data.get("discordAvatar") or "").strip(),
+            "discordLinkedAt": str(user_data.get("discordLinkedAt") or "").strip(),
+        }
+        order_total = round(
+            sum(
+                (self._to_float(item.get("price"), default=0.0) or 0.0)
+                * max(1, self._to_int(item.get("quantity"), default=1) or 1)
+                for item in items
+                if isinstance(item, dict)
+            ),
+            2,
+        )
+
         order_record = {
             "id": str(order_data.get("id") or f"ord-{int(datetime.now(timezone.utc).timestamp())}"),
-            "userId": str(user_data.get("id") or order_data.get("userId") or "guest"),
+            "userId": str(safe_user_data.get("id") or safe_user_data.get("email") or "guest"),
             "createdAt": datetime.now(timezone.utc).isoformat(),
             "paymentMethod": payment_method,
-            "user": user_data if isinstance(user_data, dict) else {},
+            "user": safe_user_data,
             "items": items,
-            "total": self._to_float(order_data.get("total"), default=0.0) or 0.0,
+            "total": order_total,
             "status": "completed",
             "credentials": credentials,
         }
-        orders = await self._load_orders()
+        orders = existing_orders
         orders.append(order_record)
         await self._save_orders(orders)
         try:
@@ -1993,6 +2388,42 @@ class WebsiteBridgeServer:
         if self.email_provider == "smtp":
             return self._is_smtp_ready()
         return self._is_resend_ready() or self._is_smtp_ready()
+
+    @staticmethod
+    def _is_password_hash(value: str) -> bool:
+        return str(value or "").startswith("pbkdf2_sha256$")
+
+    def _hash_password(self, password: str, *, iterations: int = 210_000) -> str:
+        salt = secrets.token_hex(16)
+        derived = hashlib.pbkdf2_hmac(
+            "sha256",
+            str(password or "").encode("utf-8"),
+            salt.encode("utf-8"),
+            iterations,
+        )
+        digest = self._b64url_encode(derived)
+        return f"pbkdf2_sha256${iterations}${salt}${digest}"
+
+    def _verify_password(self, password: str, stored: str) -> bool:
+        candidate = str(password or "")
+        hashed = str(stored or "").strip()
+        if not hashed:
+            return False
+        if not self._is_password_hash(hashed):
+            return hmac.compare_digest(candidate, hashed)
+        parts = hashed.split("$", 3)
+        if len(parts) != 4:
+            return False
+        _, raw_iterations, salt, expected_digest = parts
+        iterations = self._to_int(raw_iterations, default=210_000) or 210_000
+        derived = hashlib.pbkdf2_hmac(
+            "sha256",
+            candidate.encode("utf-8"),
+            salt.encode("utf-8"),
+            iterations,
+        )
+        actual_digest = self._b64url_encode(derived)
+        return hmac.compare_digest(actual_digest, expected_digest)
 
     def _purge_expired_login_otps(self) -> None:
         now = datetime.now(timezone.utc)
@@ -2555,7 +2986,7 @@ class WebsiteBridgeServer:
                 {
                     "id": "admin-1337",
                     "email": self.admin_email,
-                    "password": self.admin_password,
+                    "password": self.bootstrap_admin_password_hash,
                     "role": "admin",
                     "createdAt": datetime.now(timezone.utc).isoformat(),
                     "discordId": "",
@@ -2650,10 +3081,15 @@ class WebsiteBridgeServer:
             if not email:
                 continue
             role = str(user.get("role") or "user").strip().lower()
+            raw_password = str(user.get("password") or "").strip()
+            if raw_password and not self._is_password_hash(raw_password):
+                normalized_password = self._hash_password(raw_password)
+            else:
+                normalized_password = raw_password
             normalized_user = {
                 "id": str(user.get("id") or f"user-{int(datetime.now(timezone.utc).timestamp() * 1000)}"),
                 "email": email,
-                "password": str(user.get("password") or ""),
+                "password": normalized_password,
                 "role": "admin" if role == "admin" else "user",
                 "createdAt": str(user.get("createdAt") or datetime.now(timezone.utc).isoformat()),
                 "discordId": str(user.get("discordId") or "").strip(),
@@ -2663,7 +3099,15 @@ class WebsiteBridgeServer:
             }
             if email == self.admin_email:
                 normalized_user["id"] = str(user.get("id") or "admin-1337")
-                normalized_user["password"] = self.admin_password
+                if self.admin_password_configured:
+                    if self._is_password_hash(raw_password) and self._verify_password(self.admin_password, raw_password):
+                        normalized_user["password"] = raw_password
+                    else:
+                        normalized_user["password"] = self._hash_password(self.admin_password)
+                elif normalized_password:
+                    normalized_user["password"] = normalized_password
+                else:
+                    normalized_user["password"] = self.bootstrap_admin_password_hash
                 normalized_user["role"] = "admin"
                 admin_found = True
             normalized.append(normalized_user)
@@ -2674,7 +3118,11 @@ class WebsiteBridgeServer:
                 {
                     "id": "admin-1337",
                     "email": self.admin_email,
-                    "password": self.admin_password,
+                    "password": (
+                        self._hash_password(self.admin_password)
+                        if self.admin_password_configured
+                        else self.bootstrap_admin_password_hash
+                    ),
                     "role": "admin",
                     "createdAt": datetime.now(timezone.utc).isoformat(),
                     "discordId": "",

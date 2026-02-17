@@ -14,10 +14,9 @@ import { UserDashboard } from './components/UserDashboard';
 import { AdminPanel } from './components/AdminPanel';
 import { Checkout } from './components/Checkout';
 import { Product, CartItem, AdminSettings, ProductTier } from './types';
-import { Order, User } from './services/storageService';
+import type { Order, User } from './services/storageService';
 import { BRAND_CONFIG } from './config/brandConfig';
 import { ShopApiService } from './services/shopApiService';
-import { BotBridgeService } from './services/botBridgeService';
 
 const RESERVED_SLUGS = new Set(['vault', 'admin', 'auth', 'product']);
 
@@ -153,7 +152,11 @@ export default function App() {
   useEffect(() => {
     const localProducts: Product[] = [];
     setProducts(localProducts);
-    const session = readSession();
+    let session = readSession();
+    if (session && !ShopApiService.hasSessionToken()) {
+      writeSession(null);
+      session = null;
+    }
     if (session) {
       setUser(session);
     }
@@ -217,22 +220,6 @@ export default function App() {
 
         if (confirmation.products && confirmation.products.length > 0) {
           setProducts(confirmation.products);
-        }
-
-        BotBridgeService.sendOrder(confirmation.order, session, paymentMethod).catch((bridgeError) => {
-          console.error('Failed to notify bot about confirmed payment:', bridgeError);
-        });
-
-        if (!session) {
-          const orderUser = (confirmation.order as unknown as { user?: { id?: string; email?: string; role?: 'admin' | 'user'; createdAt?: string } }).user;
-          const fallbackUser: User = {
-            id: String(orderUser?.id || confirmation.order.userId || 'guest'),
-            email: String(orderUser?.email || 'guest@robloxkeys.local'),
-            role: orderUser?.role === 'admin' ? 'admin' : 'user',
-            createdAt: String(orderUser?.createdAt || new Date().toISOString()),
-          };
-          writeSession(fallbackUser);
-          setUser(fallbackUser);
         }
 
         setCart([]);
@@ -302,8 +289,14 @@ export default function App() {
       try {
         await handlePaymentReturn();
         await refreshApiHealth();
-        const remoteSettings = await ShopApiService.getState('settings');
-        setAdminSettings(remoteSettings);
+        if (session?.role === 'admin' && ShopApiService.hasSessionToken()) {
+          try {
+            const remoteSettings = await ShopApiService.getState('settings');
+            setAdminSettings(remoteSettings);
+          } catch {
+            // Keep default settings when admin state is unavailable.
+          }
+        }
         const remoteProducts = await ShopApiService.getProducts();
         setProducts(remoteProducts);
         applyRoute(window.location.pathname, remoteProducts, session, window.location.search);
@@ -444,6 +437,7 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    ShopApiService.clearSessionToken();
     writeSession(null);
     setUser(null);
     pushRoute('/', products, null);

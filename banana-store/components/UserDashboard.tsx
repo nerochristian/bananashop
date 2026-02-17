@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Order, User } from '../services/storageService';
+import type { Order, User } from '../services/storageService';
 import { ShopApiService } from '../services/shopApiService';
 import { Package, Shield, LogOut, Fingerprint, Lock, ShieldCheck, Activity, Loader2 } from 'lucide-react';
 
@@ -81,7 +81,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ user, onLogout, on
 
   useEffect(() => {
     let cancelled = false;
-    ShopApiService.getOrders({ userId: user.id, status: 'completed' })
+    ShopApiService.getOrders({ status: 'completed' })
       .then((rows) => {
         if (cancelled) return;
         setOrders(rows);
@@ -161,7 +161,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ user, onLogout, on
     setIsDiscordConnecting(true);
 
     try {
-      const { linkToken } = await ShopApiService.authGetDiscordLinkToken(user.id, user.email);
+      const { linkToken } = await ShopApiService.authGetDiscordLinkToken();
       const { url } = await ShopApiService.authGetDiscordConnectUrl(linkToken, `${window.location.origin}/vault`);
       window.location.href = url;
     } catch (connectError) {
@@ -175,7 +175,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ user, onLogout, on
     setDiscordActionError('');
     setIsDiscordDisconnecting(true);
     try {
-      const updatedUser = await ShopApiService.authDiscordUnlink(user.id, user.email);
+      const updatedUser = await ShopApiService.authDiscordUnlink();
       onUserUpdate(updatedUser);
       setIsDiscordStatusOpen(false);
     } catch (disconnectError) {

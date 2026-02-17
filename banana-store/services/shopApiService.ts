@@ -17,25 +17,34 @@ import {
 
 const STORE_API_BASE_URL = ((import.meta.env.VITE_STORE_API_URL as string | undefined) || '').trim().replace(/\/$/, '');
 const STORE_API_PREFIX = ((import.meta.env.VITE_STORE_API_PREFIX as string | undefined) || '/shop').trim() || '/shop';
-const STORE_API_KEY =
-  (import.meta.env.VITE_STORE_API_KEY as string | undefined) ||
-  (import.meta.env.VITE_BOT_API_KEY as string | undefined) ||
-  '';
-const STORE_API_KEY_HEADER =
-  ((import.meta.env.VITE_STORE_API_KEY_HEADER as string | undefined) ||
-    (import.meta.env.VITE_BOT_API_KEY_HEADER as string | undefined) ||
-    'x-api-key').toLowerCase();
-const STORE_API_AUTH_SCHEME =
-  (import.meta.env.VITE_STORE_API_AUTH_SCHEME as string | undefined) ||
-  (import.meta.env.VITE_BOT_API_AUTH_SCHEME as string | undefined) ||
-  '';
 const STORE_API_TIMEOUT_MS = Number(import.meta.env.VITE_STORE_API_TIMEOUT_MS || 10000);
+const SHOP_SESSION_TOKEN_KEY = 'robloxkeys.shop_session_token';
+
+const readSessionToken = (): string => {
+  try {
+    return String(localStorage.getItem(SHOP_SESSION_TOKEN_KEY) || '').trim();
+  } catch {
+    return '';
+  }
+};
+
+const writeSessionToken = (token: string) => {
+  try {
+    if (!token) {
+      localStorage.removeItem(SHOP_SESSION_TOKEN_KEY);
+      return;
+    }
+    localStorage.setItem(SHOP_SESSION_TOKEN_KEY, token);
+  } catch {
+    // Ignore storage failures in restricted environments.
+  }
+};
 
 const buildHeaders = (): HeadersInit => {
   const headers: HeadersInit = { 'Content-Type': 'application/json' };
-  if (STORE_API_KEY) {
-    const value = STORE_API_AUTH_SCHEME ? `${STORE_API_AUTH_SCHEME} ${STORE_API_KEY}` : STORE_API_KEY;
-    headers[STORE_API_KEY_HEADER] = value;
+  const sessionToken = readSessionToken();
+  if (sessionToken) {
+    headers.Authorization = `Bearer ${sessionToken}`;
   }
   return headers;
 };
@@ -206,6 +215,14 @@ export const REQUIRE_API =
   String(import.meta.env.VITE_REQUIRE_API ?? 'true').trim().toLowerCase() !== 'false';
 
 export const ShopApiService = {
+  hasSessionToken(): boolean {
+    return Boolean(readSessionToken());
+  },
+
+  clearSessionToken(): void {
+    writeSessionToken('');
+  },
+
   async health(): Promise<{ ok: boolean; products?: number; orders?: number }> {
     const response = await withTimeout(resolvePath('/health'), {
       method: 'GET',
@@ -320,6 +337,7 @@ export const ShopApiService = {
       ok?: boolean;
       message?: string;
       user?: User;
+      sessionToken?: string;
       requires2fa?: boolean;
       otpToken?: string;
       expiresInSeconds?: number;
@@ -331,6 +349,7 @@ export const ShopApiService = {
     }
 
     if (payload.requires2fa) {
+      writeSessionToken('');
       if (!payload.otpToken) {
         throw new Error('OTP session was not provided by the server');
       }
@@ -342,9 +361,10 @@ export const ShopApiService = {
       };
     }
 
-    if (!payload.user) {
+    if (!payload.user || !payload.sessionToken) {
       throw new Error('User session was not returned by the server');
     }
+    writeSessionToken(String(payload.sessionToken || '').trim());
 
     return {
       requires2fa: false,
@@ -365,12 +385,14 @@ export const ShopApiService = {
       ok?: boolean;
       message?: string;
       user?: User;
+      sessionToken?: string;
       discordLinkToken?: string;
       requiresDiscord?: boolean;
     };
-    if (!response.ok || !payload.user) {
+    if (!response.ok || !payload.user || !payload.sessionToken) {
       throw new Error(payload.message || `OTP verification failed (${response.status})`);
     }
+    writeSessionToken(String(payload.sessionToken || '').trim());
     return {
       user: payload.user,
       discordLinkToken: payload.discordLinkToken,
@@ -392,11 +414,11 @@ export const ShopApiService = {
     return { url: payload.url };
   },
 
-  async authGetDiscordLinkToken(userId: string, email: string): Promise<{ linkToken: string }> {
+  async authGetDiscordLinkToken(): Promise<{ linkToken: string }> {
     const response = await withTimeout(resolvePath('/auth/discord/link-token'), {
       method: 'POST',
       headers: buildHeaders(),
-      body: JSON.stringify({ userId, email }),
+      body: JSON.stringify({}),
     });
     const payload = await response.json().catch(() => ({})) as { ok?: boolean; message?: string; linkToken?: string };
     if (!response.ok || !payload.linkToken) {
@@ -405,11 +427,11 @@ export const ShopApiService = {
     return { linkToken: payload.linkToken };
   },
 
-  async authDiscordUnlink(userId: string, email: string): Promise<User> {
+  async authDiscordUnlink(): Promise<User> {
     const response = await withTimeout(resolvePath('/auth/discord/unlink'), {
       method: 'POST',
       headers: buildHeaders(),
-      body: JSON.stringify({ userId, email }),
+      body: JSON.stringify({}),
     });
     const payload = await response.json().catch(() => ({})) as { ok?: boolean; message?: string; user?: User };
     if (!response.ok || !payload.user) {
@@ -424,10 +446,11 @@ export const ShopApiService = {
       headers: buildHeaders(),
       body: JSON.stringify({ email, password }),
     });
-    const payload = await response.json().catch(() => ({})) as { ok?: boolean; message?: string; user?: User };
-    if (!response.ok || !payload.user) {
+    const payload = await response.json().catch(() => ({})) as { ok?: boolean; message?: string; user?: User; sessionToken?: string };
+    if (!response.ok || !payload.user || !payload.sessionToken) {
       throw new Error(payload.message || `Register failed (${response.status})`);
     }
+    writeSessionToken(String(payload.sessionToken || '').trim());
     return payload.user;
   },
 
@@ -502,11 +525,11 @@ export const ShopApiService = {
     };
   },
 
-  async buy(order: Order, user: User | null, paymentMethod: string, paymentVerified: boolean = false): Promise<{ ok: boolean; products?: Product[]; orderId?: string; order?: Order }> {
+  async buy(order: Order, paymentMethod: string, paymentVerified: boolean = false): Promise<{ ok: boolean; products?: Product[]; orderId?: string; order?: Order }> {
     const response = await withTimeout(resolvePath('/buy'), {
       method: 'POST',
       headers: buildHeaders(),
-      body: JSON.stringify({ order, user, paymentMethod, paymentVerified }),
+      body: JSON.stringify({ order, paymentMethod, paymentVerified }),
     });
     if (!response.ok) {
       let message = `Buy request failed (${response.status})`;
@@ -527,11 +550,11 @@ export const ShopApiService = {
     };
   },
 
-  async createPayment(order: Order, user: User | null, paymentMethod: string, successUrl: string, cancelUrl: string): Promise<{ ok: boolean; checkoutUrl?: string; token?: string; sessionId?: string; trackId?: string; manual?: boolean }> {
+  async createPayment(order: Order, paymentMethod: string, successUrl: string, cancelUrl: string): Promise<{ ok: boolean; checkoutUrl?: string; token?: string; sessionId?: string; trackId?: string; manual?: boolean }> {
     const response = await withTimeout(resolvePath('/payments/create'), {
       method: 'POST',
       headers: buildHeaders(),
-      body: JSON.stringify({ order, user, paymentMethod, successUrl, cancelUrl }),
+      body: JSON.stringify({ order, paymentMethod, successUrl, cancelUrl }),
     });
     if (!response.ok) {
       let message = `Create payment failed (${response.status})`;
