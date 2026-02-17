@@ -15,7 +15,7 @@ from urllib.parse import urlencode, urlparse, urlunparse, parse_qsl
 
 import asyncpg
 import discord
-from aiohttp import ClientSession, web
+from aiohttp import ClientSession, ClientTimeout, web
 
 from ..utils.logger import logger
 
@@ -52,6 +52,14 @@ class WebsiteBridgeServer:
         self.smtp_from_name = (os.getenv("SMTP_FROM_NAME") or "Roblox Keys").strip()
         self.smtp_use_tls = self._env_bool("SMTP_USE_TLS", default=True)
         self.smtp_use_ssl = self._env_bool("SMTP_USE_SSL", default=False)
+        self.resend_api_key = (os.getenv("RESEND_API_KEY") or "").strip()
+        self.resend_api_url = (os.getenv("RESEND_API_URL") or "https://api.resend.com/emails").strip()
+        self.resend_from_email = (os.getenv("RESEND_FROM_EMAIL") or self.smtp_from_email).strip()
+        self.resend_from_name = (os.getenv("RESEND_FROM_NAME") or self.smtp_from_name or "Roblox Keys").strip()
+        self.resend_reply_to = (os.getenv("RESEND_REPLY_TO") or "").strip()
+        self.email_provider = (os.getenv("EMAIL_PROVIDER") or "auto").strip().lower()
+        if self.email_provider not in {"auto", "smtp", "resend"}:
+            self.email_provider = "auto"
         self.db_url = (os.getenv("SUPABASE_DATABASE_URL") or os.getenv("DATABASE_URL") or "").strip()
         self.shop_storage_backend = (os.getenv("SHOP_STORAGE_BACKEND") or "auto").strip().lower()
         if self.shop_storage_backend not in {"auto", "supabase", "json"}:
@@ -1500,8 +1508,20 @@ class WebsiteBridgeServer:
             return None
         return body
 
+    def _is_resend_ready(self) -> bool:
+        return bool(self.resend_api_key and self.resend_from_email)
+
+    def _is_smtp_ready(self) -> bool:
+        return bool(self.smtp_host and self.smtp_from_email)
+
     def _is_login_2fa_ready(self) -> bool:
-        return bool(self.login_2fa_enabled and self.smtp_host and self.smtp_from_email)
+        if not self.login_2fa_enabled:
+            return False
+        if self.email_provider == "resend":
+            return self._is_resend_ready()
+        if self.email_provider == "smtp":
+            return self._is_smtp_ready()
+        return self._is_resend_ready() or self._is_smtp_ready()
 
     def _purge_expired_login_otps(self) -> None:
         now = datetime.now(timezone.utc)
@@ -1528,7 +1548,8 @@ class WebsiteBridgeServer:
 
     async def _send_login_otp_email(self, email: str, otp_code: str) -> bool:
         ttl_minutes = max(1, self.login_otp_ttl_seconds // 60)
-        subject = f"{self.smtp_from_name} Login Verification Code"
+        brand_name = self.resend_from_name or self.smtp_from_name or "Roblox Keys"
+        subject = f"{brand_name} Login Verification Code"
         body = (
             f"Your login verification code is: {otp_code}\n\n"
             f"This code expires in {ttl_minutes} minute(s).\n"
@@ -1570,7 +1591,8 @@ class WebsiteBridgeServer:
 
         details = "\n".join(item_lines) if item_lines else "- (No line items)"
         credentials_text = "\n\n".join(credential_lines) if credential_lines else "No credentials attached."
-        subject = f"{self.smtp_from_name} Order Confirmation ({order_id})"
+        brand_name = self.resend_from_name or self.smtp_from_name or "Roblox Keys"
+        subject = f"{brand_name} Order Confirmation ({order_id})"
         body = (
             f"Thanks for your purchase.\n\n"
             f"Order ID: {order_id}\n"
@@ -1589,7 +1611,58 @@ class WebsiteBridgeServer:
         recipient = str(to_email or "").strip()
         if not recipient:
             return False
-        if not self.smtp_host or not self.smtp_from_email:
+        if self.email_provider == "resend":
+            return await self._send_email_via_resend(recipient, subject, body)
+
+        if self.email_provider == "smtp":
+            return await self._send_email_via_smtp(recipient, subject, body)
+
+        # auto: prefer Resend (HTTPS) on hosted runtimes, fallback to SMTP
+        if self._is_resend_ready():
+            sent = await self._send_email_via_resend(recipient, subject, body)
+            if sent:
+                return True
+        if self._is_smtp_ready():
+            return await self._send_email_via_smtp(recipient, subject, body)
+        return False
+
+    async def _send_email_via_resend(self, recipient: str, subject: str, body: str) -> bool:
+        if not self._is_resend_ready():
+            return False
+
+        sender_name = self.resend_from_name or self.smtp_from_name or "Roblox Keys"
+        sender_email = self.resend_from_email
+        payload: dict[str, Any] = {
+            "from": f"{sender_name} <{sender_email}>",
+            "to": [recipient],
+            "subject": subject,
+            "text": body,
+        }
+        if self.resend_reply_to:
+            payload["reply_to"] = self.resend_reply_to
+
+        headers = {
+            "Authorization": f"Bearer {self.resend_api_key}",
+            "Content-Type": "application/json",
+        }
+
+        try:
+            timeout = ClientTimeout(total=20)
+            async with ClientSession(timeout=timeout) as session:
+                async with session.post(self.resend_api_url, headers=headers, json=payload) as response:
+                    if 200 <= response.status < 300:
+                        return True
+                    details = (await response.text())[:500]
+                    logger.error(
+                        f"Resend send failed for {recipient}: status={response.status} response={details}"
+                    )
+                    return False
+        except Exception as exc:
+            logger.error(f"Resend send failed for {recipient}: {exc}")
+            return False
+
+    async def _send_email_via_smtp(self, recipient: str, subject: str, body: str) -> bool:
+        if not self._is_smtp_ready():
             return False
 
         message = EmailMessage()
