@@ -9,6 +9,17 @@ interface ProductCardProps {
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product, onView }) => {
+  const buildInlineFallback = (name: string) => {
+    const initials = String(name || 'RK')
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() || '')
+      .join('') || 'RK';
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160"><rect width="160" height="160" rx="20" fill="#111827"/><rect x="6" y="6" width="148" height="148" rx="16" fill="none" stroke="#facc15" stroke-opacity="0.35"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="56" font-weight="800" fill="#facc15">${initials}</text></svg>`;
+    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  };
+
   const tierPrices = (product.tiers || []).map((tier) => Number(tier.price || 0)).filter((value) => value > 0);
   const isTiered = tierPrices.length > 0;
   const minTierPrice = isTiered ? Math.min(...tierPrices) : product.price;
@@ -75,7 +86,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onView }) => 
             alt={product.name} 
             className="w-16 h-16 md:w-20 md:h-20 object-contain opacity-95 drop-shadow-2xl" 
             onError={(e) => {
-              (e.target as HTMLImageElement).src = 'https://api.dicebear.com/7.x/initials/svg?seed=' + product.name;
+              const img = e.currentTarget;
+              img.onerror = null;
+              img.src = buildInlineFallback(product.name);
             }}
           />
         </div>

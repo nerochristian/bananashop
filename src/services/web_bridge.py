@@ -194,6 +194,7 @@ class WebsiteBridgeServer:
         self.app.router.add_post("/shop/chat", self.chat)
         self.app.router.add_get("/shop/products", self.shop_products)
         self.app.router.add_get("/shop/products/{product_id}", self.shop_get_product)
+        self.app.router.add_get("/shop/media/{asset_id}", self.shop_get_media)
         self.app.router.add_get("/shop/invoices/{invoice_id}", self.shop_get_invoice)
         self.app.router.add_get("/shop/orders", self.shop_orders)
         self.app.router.add_get("/shop/analytics", self.shop_analytics)
@@ -305,6 +306,7 @@ class WebsiteBridgeServer:
         if request.method == "GET" and (
             path == "/shop/products"
             or path.startswith("/shop/products/")
+            or path.startswith("/shop/media/")
             or path == "/shop/payment-methods"
         ):
             return True
@@ -575,6 +577,49 @@ class WebsiteBridgeServer:
                         return web.json_response({"ok": False, "message": "forbidden"}, status=403)
                 return web.json_response({"ok": True, "invoice": order, "data": order})
         return web.json_response({"ok": False, "message": "invoice not found"}, status=404)
+
+    async def shop_get_media(self, request: web.Request):
+        asset_id = str(request.match_info.get("asset_id", "")).strip()
+        if not asset_id:
+            return web.json_response({"ok": False, "message": "asset id is required"}, status=400)
+
+        library = await self._load_media_library()
+        target = next((row for row in library if str(row.get("id", "")).strip() == asset_id), None)
+        if not isinstance(target, dict):
+            return web.json_response({"ok": False, "message": "media not found"}, status=404)
+
+        mime_type = str(target.get("mimeType", "")).strip().lower() or "application/octet-stream"
+        filename = str(target.get("filename", "")).strip() or f"{asset_id}.bin"
+        raw: Optional[bytes] = None
+
+        encoded = str(target.get("dataBase64", "")).strip()
+        if encoded:
+            try:
+                raw = base64.b64decode(encoded, validate=False)
+            except Exception:
+                raw = None
+        else:
+            # Backward compatibility with old entries that stored full data URLs.
+            data_url = str(target.get("dataUrl", "")).strip()
+            if data_url.startswith("data:") and ";base64," in data_url:
+                header, b64 = data_url.split(",", 1)
+                if header.startswith("data:"):
+                    candidate_mime = header[len("data:") :].split(";", 1)[0].strip().lower()
+                    if candidate_mime:
+                        mime_type = candidate_mime
+                try:
+                    raw = base64.b64decode(b64, validate=False)
+                except Exception:
+                    raw = None
+
+        if not raw:
+            return web.json_response({"ok": False, "message": "media payload is invalid"}, status=422)
+
+        headers = {
+            "Cache-Control": "public, max-age=31536000, immutable",
+            "Content-Disposition": f'inline; filename="{filename}"',
+        }
+        return web.Response(body=raw, content_type=mime_type, headers=headers)
 
     async def shop_orders(self, request: web.Request):
         auth_user = self._shop_user_from_request(request)
@@ -1525,7 +1570,6 @@ class WebsiteBridgeServer:
 
         raw = b"".join(chunks)
         encoded = base64.b64encode(raw).decode("ascii")
-        data_url = f"data:{part_content_type};base64,{encoded}"
         created_at = datetime.now(timezone.utc).isoformat()
         asset_id = f"img-{int(datetime.now(timezone.utc).timestamp() * 1000)}-{secrets.token_hex(4)}"
         asset = {
@@ -1534,8 +1578,13 @@ class WebsiteBridgeServer:
             "mimeType": part_content_type,
             "size": total,
             "createdAt": created_at,
-            "dataUrl": data_url,
+            "dataBase64": encoded,
         }
+        asset_path = f"/shop/media/{asset_id}"
+        try:
+            asset_url = str(request.url.with_path(asset_path).with_query({}))
+        except Exception:
+            asset_url = asset_path
 
         library = await self._load_media_library()
         library = [asset] + [row for row in library if isinstance(row, dict) and str(row.get("id", "")) != asset_id]
@@ -1547,13 +1596,13 @@ class WebsiteBridgeServer:
                 "ok": True,
                 "asset": {
                     "id": asset_id,
-                    "filename": file_name,
-                    "mimeType": part_content_type,
-                    "size": total,
-                    "createdAt": created_at,
-                    "url": data_url,
-                },
-            }
+                        "filename": file_name,
+                        "mimeType": part_content_type,
+                        "size": total,
+                        "createdAt": created_at,
+                        "url": asset_url,
+                    },
+                }
         )
 
     async def shop_upsert_product(self, request: web.Request):

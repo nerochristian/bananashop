@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { ShoppingCart, User, MessageCircle, LayoutGrid } from 'lucide-react';
+import { X as XMark } from 'lucide-react';
 import { BRAND_CONFIG } from '../config/brandConfig';
 
 interface NavbarProps {
@@ -11,50 +10,64 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ cartCount, onCartClick, onAdminClick, onLogoClick }) => {
+  const openExternal = (url: string) => {
+    if (!url || url === '#') return;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const ringClass =
+    'pointer-events-none absolute left-1/2 top-1/2 h-10 w-10 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#facc15]/75 opacity-0 transition-opacity duration-700 group-hover:opacity-100';
+  const navItemClass =
+    'group relative overflow-hidden rounded-full border border-white/10 bg-black/40 px-5 py-2 text-sm font-bold text-white/90 transition-all hover:border-[#facc15]/45 hover:text-white';
+
   return (
-    <nav className="fixed top-0 left-0 z-50 w-full px-3 py-3 pointer-events-none sm:px-4 sm:py-8">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 pointer-events-auto sm:gap-4">
+    <nav className="fixed left-0 top-0 z-50 w-full px-2 py-2 pointer-events-none sm:px-4 sm:py-4">
+      <div className="mx-auto flex max-w-[1900px] items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[linear-gradient(90deg,rgba(0,0,0,0.88),rgba(0,80,58,0.34),rgba(0,0,0,0.92))] px-3 py-2 shadow-[0_16px_48px_rgba(0,0,0,0.46)] backdrop-blur-xl pointer-events-auto sm:px-5">
         <button
-          className="flex min-w-0 items-center gap-2 rounded-2xl border border-white/5 bg-black/40 px-3 py-2 shadow-2xl backdrop-blur-xl transition-all active:scale-95 group hover:border-yellow-400/30 sm:gap-3 sm:px-5"
+          className="group relative flex items-center justify-center rounded-xl border border-white/10 bg-black/35 p-2 transition-all hover:border-[#facc15]/45"
           onClick={onLogoClick}
+          aria-label="Home"
         >
-          <div className="flex items-center justify-center rounded-lg bg-[#facc15] p-1.5 transition-transform rotate-3 group-hover:rotate-0">
-            {BRAND_CONFIG.assets.logoUrl ? (
-              <img
-                src={BRAND_CONFIG.assets.logoUrl}
-                alt={`${BRAND_CONFIG.identity.storeName} logo`}
-                className="h-5 w-5 rounded-sm object-cover"
-              />
-            ) : (
-              <LayoutGrid className="h-5 w-5 text-black" strokeWidth={3} />
-            )}
+          <span className={ringClass} />
+          <div className="relative rounded-lg bg-white p-1.5">
+            <XMark className="h-8 w-8 text-black" strokeWidth={4.2} />
           </div>
-          <span className="hidden truncate text-xl font-black tracking-tighter text-white sm:block">{BRAND_CONFIG.identity.storeName}</span>
-          <span className="text-sm font-black tracking-tight text-white sm:hidden">RK</span>
         </button>
 
-        <div className="flex items-center justify-end gap-1.5 sm:gap-4">
-          <button
-            onClick={onAdminClick}
-            className="flex items-center gap-2 rounded-xl px-2.5 py-2 text-[11px] font-black uppercase tracking-widest text-white/60 transition-colors hover:bg-white/5 hover:text-white sm:px-0 sm:py-0"
-            aria-label="Account"
-          >
-            <User className="h-4 w-4" />
-            <span className="hidden sm:inline">Account</span>
+        <div className="flex items-center gap-2 sm:gap-3">
+          <button onClick={onAdminClick} className={navItemClass}>
+            <span className={ringClass} />
+            <span className="relative">Account</span>
           </button>
 
-          <button className="hidden items-center gap-2 text-[11px] font-black uppercase tracking-widest text-white/40 transition-colors hover:text-white sm:flex">
-            <MessageCircle className="h-3.5 w-3.5" />
-            <span>Support</span>
+          <button onClick={onLogoClick} className={`${navItemClass} hidden sm:inline-flex`}>
+            <span className={ringClass} />
+            <span className="relative">Guides</span>
+          </button>
+
+          <button
+            onClick={() => openExternal(BRAND_CONFIG.links.discord === '#' ? BRAND_CONFIG.links.support : BRAND_CONFIG.links.discord)}
+            className={`${navItemClass} hidden sm:inline-flex`}
+          >
+            <span className={ringClass} />
+            <span className="relative">Discord</span>
+          </button>
+
+          <button onClick={() => (window.location.href = '/terms')} className={`${navItemClass} hidden sm:inline-flex`}>
+            <span className={ringClass} />
+            <span className="relative">Terms</span>
+          </button>
+
+          <button onClick={() => (window.location.href = '/privacy')} className={navItemClass}>
+            <span className={ringClass} />
+            <span className="relative">Privacy</span>
           </button>
 
           <button
             onClick={onCartClick}
-            className="flex items-center gap-2 rounded-xl bg-[#facc15] px-3 py-2 text-[11px] font-black uppercase tracking-tight text-black transition-all shadow-[0_0_20px_rgba(250,204,21,0.3)] hover:scale-105 hover:bg-[#eab308] sm:px-4"
+            className="hidden rounded-full border border-[#facc15]/35 bg-[#facc15]/10 px-3 py-2 text-xs font-black text-[#facc15] transition-all hover:bg-[#facc15]/20 md:inline-flex"
           >
-            <ShoppingCart className="h-4 w-4" />
-            <span className="sm:hidden">{cartCount}</span>
-            <span className="hidden sm:inline">Cart ({cartCount})</span>
+            Cart {cartCount}
           </button>
         </div>
       </div>

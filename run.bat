@@ -5,6 +5,8 @@ cd /d "%~dp0"
 set "START_BOT=1"
 if /i "%~1"=="--web-only" set "START_BOT=0"
 if "%AUTH_SESSION_SECRET%"=="" set "AUTH_SESSION_SECRET=robloxkeys-local-dev-session-secret-change-me"
+if "%BRAND_LOGO_URL%"=="" set "BRAND_LOGO_URL=https://cdn.discordapp.com/icons/1388303592502333530/9d7828a6890fa9cbd6ce373d295992b3.webp?size=512^&quality=lossless"
+if "%BRAND_BANNER_URL%"=="" set "BRAND_BANNER_URL=https://cdn.discordapp.com/banners/1388303592502333530/f51da5b94a949ddd93ce874a8f58176a.webp?size=1024"
 
 where node >nul 2>nul
 if errorlevel 1 (

@@ -1,16 +1,17 @@
 export const BRAND_CONFIG = {
+  // Shared brand asset URLs for website surfaces.
+  // Keep these aligned with bot branding constants/env where possible.
+  assets: {
+    logoUrl: "https://cdn.discordapp.com/icons/1388303592502333530/9d7828a6890fa9cbd6ce373d295992b3.webp?size=512&quality=lossless",
+    bannerUrl: "https://cdn.discordapp.com/banners/1388303592502333530/f51da5b94a949ddd93ce874a8f58176a.webp?size=1024",
+    faviconUrl: "https://cdn.discordapp.com/icons/1388303592502333530/9d7828a6890fa9cbd6ce373d295992b3.webp?size=64&quality=lossless",
+  },
   identity: {
     storeName: "Roblox Keys",
     shortName: "Roblox Keys",
     botName: "Roblox Keys Bot",
     adminPanelName: "Roblox Keys Panel",
     pageTitle: "Roblox Keys - Premium Digital Goods",
-  },
-  assets: {
-    // Paste your image URLs here.
-    logoUrl: "",
-    bannerUrl: "",
-    faviconUrl: "",
   },
   emojis: {
     brand: "🗝️",

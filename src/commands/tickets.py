@@ -3,6 +3,7 @@ from discord import app_commands, ui
 from discord.ext import commands
 import asyncio
 import re
+import os
 import aiohttp
 from typing import Optional, Literal
 from ..utils.base_cog import BaseCog
@@ -24,8 +25,14 @@ from ..services.transcript_service import generate_transcript
 from tortoise.transactions import in_transaction
 from ..utils.logger import logger
 
-SERVER_LOGO = "https://media.discordapp.net/attachments/1461045644813668534/1461046354204954868/71ad111fcd062061bd30cde4b0230285.png?ex=696920f3&is=6967cf73&hm=23d85a81aad0f8541bef4818e9fd6bec179cd1caf99c47b0d61366664df48f99&=&format=webp&quality=lossless"
-SERVER_BANNER = "https://media.discordapp.net/attachments/1461045644813668534/1461046165796552774/ChatGPT_Image_Jan_14_2026_11_38_25_AM.png?ex=696920c6&is=6967cf46&hm=c5411333a91339cf355a1f64d723e131b81e676aec7a1038ab07b0f038070c38&=&format=webp&quality=lossless&width=1249&height=499"
+SERVER_LOGO = (
+    os.getenv("BRAND_LOGO_URL")
+    or "https://cdn.discordapp.com/icons/1388303592502333530/9d7828a6890fa9cbd6ce373d295992b3.webp?size=512&quality=lossless"
+)
+SERVER_BANNER = (
+    os.getenv("BRAND_BANNER_URL")
+    or "https://cdn.discordapp.com/banners/1388303592502333530/f51da5b94a949ddd93ce874a8f58176a.webp?size=1024"
+)
 
 class TicketPanelSelect(discord.ui.Select):
     def __init__(self, emoji_map: Optional[dict[str, discord.Emoji]] = None):
@@ -1545,4 +1552,3 @@ class Tickets(BaseCog):
 
 async def setup(bot):
     await bot.add_cog(Tickets(bot))
-
