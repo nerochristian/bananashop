@@ -152,6 +152,7 @@ class WebsiteBridgeServer:
         self.app.router.add_post("/shop/auth/login", self.shop_auth_login)
         self.app.router.add_post("/shop/auth/verify-otp", self.shop_auth_verify_otp)
         self.app.router.add_post("/shop/auth/register", self.shop_auth_register)
+        self.app.router.add_post("/shop/auth/discord/link-token", self.shop_auth_discord_link_token)
         self.app.router.add_post("/shop/auth/discord/connect-url", self.shop_auth_discord_connect_url)
         self.app.router.add_get("/shop/auth/discord/callback", self.shop_auth_discord_callback)
         self.app.router.add_post("/shop/auth/discord/unlink", self.shop_auth_discord_unlink)
@@ -563,6 +564,38 @@ class WebsiteBridgeServer:
         public_user = dict(user)
         public_user.pop("password", None)
         return web.json_response({"ok": True, "user": public_user})
+
+    async def shop_auth_discord_link_token(self, request: web.Request):
+        payload = await self._safe_json(request)
+        if payload is None:
+            return web.json_response({"ok": False, "message": "invalid json body"}, status=400)
+
+        user_id = str(payload.get("userId") or "").strip()
+        email = str(payload.get("email") or "").strip().lower()
+        if not user_id or not email:
+            return web.json_response({"ok": False, "message": "user id and email are required"}, status=400)
+
+        users = await self._load_state("users")
+        if not isinstance(users, list):
+            users = []
+        users = self._ensure_default_admin_user([item for item in users if isinstance(item, dict)])
+
+        target_user: Optional[dict[str, Any]] = None
+        for user in users:
+            if str(user.get("id") or "").strip() != user_id:
+                continue
+            if str(user.get("email") or "").strip().lower() != email:
+                continue
+            target_user = user
+            break
+
+        if target_user is None:
+            return web.json_response({"ok": False, "message": "user not found"}, status=404)
+
+        public_user = dict(target_user)
+        public_user.pop("password", None)
+        link_token = self._issue_discord_link_token(public_user)
+        return web.json_response({"ok": True, "linkToken": link_token})
 
     async def shop_auth_discord_connect_url(self, request: web.Request):
         payload = await self._safe_json(request)

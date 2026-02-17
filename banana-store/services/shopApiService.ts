@@ -392,6 +392,19 @@ export const ShopApiService = {
     return { url: payload.url };
   },
 
+  async authGetDiscordLinkToken(userId: string, email: string): Promise<{ linkToken: string }> {
+    const response = await withTimeout(resolvePath('/auth/discord/link-token'), {
+      method: 'POST',
+      headers: buildHeaders(),
+      body: JSON.stringify({ userId, email }),
+    });
+    const payload = await response.json().catch(() => ({})) as { ok?: boolean; message?: string; linkToken?: string };
+    if (!response.ok || !payload.linkToken) {
+      throw new Error(payload.message || `Discord link token failed (${response.status})`);
+    }
+    return { linkToken: payload.linkToken };
+  },
+
   async authDiscordUnlink(userId: string, email: string): Promise<User> {
     const response = await withTimeout(resolvePath('/auth/discord/unlink'), {
       method: 'POST',

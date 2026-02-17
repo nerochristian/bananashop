@@ -1,5 +1,5 @@
-ï»¿import React, { useEffect, useMemo, useState } from 'react';
-import { Mail, Lock, UserPlus, ArrowLeft, LayoutGrid, LogIn, ShieldCheck, KeyRound, Link2, Loader2 } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Mail, Lock, UserPlus, ArrowLeft, LayoutGrid, LogIn, ShieldCheck, KeyRound } from 'lucide-react';
 import { User } from '../services/storageService';
 import { BRAND_CONFIG } from '../config/brandConfig';
 import { ShopApiService } from '../services/shopApiService';
@@ -9,32 +9,7 @@ interface AuthProps {
   onBack: () => void;
 }
 
-const PENDING_DISCORD_AUTH_KEY = 'robloxkeys.pending_discord_auth';
-
-interface PendingDiscordAuth {
-  user: User;
-  linkToken: string;
-}
-
-const readPendingDiscordAuth = (): PendingDiscordAuth | null => {
-  try {
-    const raw = sessionStorage.getItem(PENDING_DISCORD_AUTH_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as PendingDiscordAuth;
-    if (!parsed?.user || !parsed?.linkToken) return null;
-    return parsed;
-  } catch {
-    return null;
-  }
-};
-
-const writePendingDiscordAuth = (payload: PendingDiscordAuth | null) => {
-  if (!payload) {
-    sessionStorage.removeItem(PENDING_DISCORD_AUTH_KEY);
-    return;
-  }
-  sessionStorage.setItem(PENDING_DISCORD_AUTH_KEY, JSON.stringify(payload));
-};
+const JUST_SIGNED_IN_KEY = 'robloxkeys.just_signed_in';
 
 export const Auth: React.FC<AuthProps> = ({ onAuthComplete, onBack }) => {
   const [isLogin, setIsLogin] = useState(true);
@@ -44,10 +19,6 @@ export const Auth: React.FC<AuthProps> = ({ onAuthComplete, onBack }) => {
   const [otpToken, setOtpToken] = useState('');
   const [otpNotice, setOtpNotice] = useState('');
   const [error, setError] = useState('');
-  const [discordPrompt, setDiscordPrompt] = useState('');
-  const [pendingDiscordUser, setPendingDiscordUser] = useState<User | null>(null);
-  const [pendingDiscordToken, setPendingDiscordToken] = useState('');
-  const [isDiscordConnecting, setIsDiscordConnecting] = useState(false);
 
   const isOtpStep = useMemo(() => isLogin && Boolean(otpToken), [isLogin, otpToken]);
 
@@ -56,134 +27,6 @@ export const Auth: React.FC<AuthProps> = ({ onAuthComplete, onBack }) => {
     setOtpCode('');
     setOtpNotice('');
   };
-
-  const clearDiscordLinkState = () => {
-    setDiscordPrompt('');
-    setPendingDiscordUser(null);
-    setPendingDiscordToken('');
-    writePendingDiscordAuth(null);
-  };
-
-  const startDiscordConnect = async (user: User, linkToken: string) => {
-    setIsDiscordConnecting(true);
-    setError('');
-
-    try {
-      const returnUrl = `${window.location.origin}/auth`;
-      writePendingDiscordAuth({ user, linkToken });
-      const result = await ShopApiService.authGetDiscordConnectUrl(linkToken, returnUrl);
-      window.location.href = result.url;
-    } catch (discordError) {
-      setError(discordError instanceof Error ? discordError.message : 'Failed to start Discord connect');
-      setIsDiscordConnecting(false);
-    }
-  };
-
-  const handleAuthenticatedUser = async (
-    authenticatedUser: User,
-    discordLinkToken?: string,
-    requiresDiscord?: boolean,
-    message?: string,
-    autoConnect: boolean = false
-  ) => {
-    const hasDiscord = Boolean((authenticatedUser.discordId || '').trim());
-    const shouldHandleDiscordLink = Boolean(!hasDiscord && discordLinkToken && (requiresDiscord || autoConnect));
-
-    if (shouldHandleDiscordLink) {
-      setPendingDiscordUser(authenticatedUser);
-      setPendingDiscordToken(discordLinkToken);
-      setDiscordPrompt(message || (requiresDiscord ? 'Connect Discord to continue.' : 'Connect Discord to unlock linked profile features.'));
-      writePendingDiscordAuth({ user: authenticatedUser, linkToken: discordLinkToken });
-
-      if (autoConnect) {
-        await startDiscordConnect(authenticatedUser, discordLinkToken);
-      }
-      return;
-    }
-
-    clearDiscordLinkState();
-    onAuthComplete(authenticatedUser);
-  };
-
-  const handleConnectDiscordFromSignin = async () => {
-    setError('');
-
-    if (pendingDiscordUser && pendingDiscordToken) {
-      await startDiscordConnect(pendingDiscordUser, pendingDiscordToken);
-      return;
-    }
-
-    const cleanEmail = email.trim().toLowerCase();
-    const cleanPassword = password.trim();
-    if (!cleanEmail || !cleanPassword) {
-      setError('Enter your email and password first.');
-      return;
-    }
-
-    try {
-      const loginResult = await ShopApiService.authLogin(cleanEmail, cleanPassword);
-      if (loginResult.requires2fa) {
-        setOtpToken(loginResult.otpToken);
-        setOtpNotice(loginResult.message);
-        setOtpCode('');
-        setDiscordPrompt('Verify your email code, then connect Discord.');
-        return;
-      }
-
-      await handleAuthenticatedUser(
-        loginResult.user,
-        loginResult.discordLinkToken,
-        loginResult.requiresDiscord,
-        loginResult.message,
-        true
-      );
-    } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : 'Authentication failed');
-    }
-  };
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const discordStatus = (params.get('discord') || '').trim().toLowerCase();
-    if (!discordStatus) {
-      return;
-    }
-
-    const clearAuthQuery = () => {
-      window.history.replaceState({}, document.title, '/auth');
-    };
-
-    if (discordStatus === 'linked') {
-      const pending = readPendingDiscordAuth();
-      if (pending?.user) {
-        const discordId = (params.get('discordId') || pending.user.discordId || '').trim();
-        const discordUsername = (params.get('discordUsername') || pending.user.discordUsername || '').trim();
-        const discordAvatar = (params.get('discordAvatar') || pending.user.discordAvatar || '').trim();
-        const linkedUser: User = {
-          ...pending.user,
-          discordId,
-          discordUsername,
-          discordAvatar,
-          discordLinkedAt: new Date().toISOString(),
-        };
-
-        clearDiscordLinkState();
-        clearAuthQuery();
-        onAuthComplete(linkedUser);
-        return;
-      }
-
-      setError('Discord linked. Please sign in again to refresh your session.');
-      clearDiscordLinkState();
-      clearAuthQuery();
-      return;
-    }
-
-    const reason = (params.get('message') || 'discord_link_failed').replace(/[_-]+/g, ' ');
-    setError(`Discord connect failed: ${reason}`);
-    setIsDiscordConnecting(false);
-    clearAuthQuery();
-  }, [onAuthComplete]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -200,14 +43,10 @@ export const Auth: React.FC<AuthProps> = ({ onAuthComplete, onBack }) => {
             setError('Verification code is required');
             return;
           }
+
           const verified = await ShopApiService.authVerifyOtp(otpToken, cleanCode);
-          await handleAuthenticatedUser(
-            verified.user,
-            verified.discordLinkToken,
-            verified.requiresDiscord,
-            verified.message,
-            false
-          );
+          sessionStorage.setItem(JUST_SIGNED_IN_KEY, '1');
+          onAuthComplete(verified.user);
           return;
         }
 
@@ -224,13 +63,8 @@ export const Auth: React.FC<AuthProps> = ({ onAuthComplete, onBack }) => {
           return;
         }
 
-        await handleAuthenticatedUser(
-          loginResult.user,
-          loginResult.discordLinkToken,
-          loginResult.requiresDiscord,
-          loginResult.message,
-          false
-        );
+        sessionStorage.setItem(JUST_SIGNED_IN_KEY, '1');
+        onAuthComplete(loginResult.user);
         return;
       }
 
@@ -239,7 +73,6 @@ export const Auth: React.FC<AuthProps> = ({ onAuthComplete, onBack }) => {
         return;
       }
 
-      clearDiscordLinkState();
       const user: User = await ShopApiService.authRegister(cleanEmail, cleanPassword);
       onAuthComplete(user);
     } catch (submitError) {
@@ -310,7 +143,7 @@ export const Auth: React.FC<AuthProps> = ({ onAuthComplete, onBack }) => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full rounded-2xl border border-white/5 bg-black px-12 py-4 font-bold text-white outline-none transition-all focus:border-[#facc15]"
-                    placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                    placeholder="••••••••"
                   />
                 </div>
               </div>
@@ -344,21 +177,6 @@ export const Auth: React.FC<AuthProps> = ({ onAuthComplete, onBack }) => {
             </div>
           )}
 
-          {discordPrompt && (
-            <div className="space-y-3 rounded-2xl border border-[#5865F2]/35 bg-[#5865F2]/10 px-4 py-3">
-              <p className="text-center text-[10px] font-black uppercase tracking-widest text-[#AAB3FF]">{discordPrompt}</p>
-              <button
-                type="button"
-                onClick={handleConnectDiscordFromSignin}
-                disabled={isDiscordConnecting}
-                className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[#5865F2]/45 bg-[#5865F2]/20 py-3 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-[#5865F2]/35 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isDiscordConnecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
-                {isDiscordConnecting ? 'Connecting Discord...' : 'Connect Discord'}
-              </button>
-            </div>
-          )}
-
           {error && (
             <p className="rounded-xl border border-red-500/10 bg-red-500/5 py-3 text-center text-[10px] font-black uppercase text-red-500">
               {error}
@@ -372,18 +190,6 @@ export const Auth: React.FC<AuthProps> = ({ onAuthComplete, onBack }) => {
             {isLogin ? <LogIn className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
             {isOtpStep ? 'Verify Code' : isLogin ? 'Authenticate' : 'Create Account'}
           </button>
-
-          {isLogin && !isOtpStep && !discordPrompt && (
-            <button
-              type="button"
-              onClick={handleConnectDiscordFromSignin}
-              disabled={isDiscordConnecting}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[#5865F2]/30 bg-[#5865F2]/10 py-4 text-[10px] font-black uppercase tracking-widest text-[#C6CCFF] transition-all hover:bg-[#5865F2]/20 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isDiscordConnecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
-              {isDiscordConnecting ? 'Connecting...' : 'Connect Discord'}
-            </button>
-          )}
         </form>
 
         <div className="relative mt-8 border-t border-white/5 pt-8 text-center">
@@ -391,7 +197,6 @@ export const Auth: React.FC<AuthProps> = ({ onAuthComplete, onBack }) => {
             onClick={() => {
               setIsLogin(!isLogin);
               resetOtpStep();
-              clearDiscordLinkState();
               setError('');
             }}
             className="text-[10px] font-black uppercase tracking-widest text-white/30 transition-colors hover:text-white"
@@ -407,4 +212,3 @@ export const Auth: React.FC<AuthProps> = ({ onAuthComplete, onBack }) => {
     </div>
   );
 };
-
