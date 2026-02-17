@@ -1,5 +1,6 @@
 import hmac
 import asyncio
+import html
 import os
 import re
 import fnmatch
@@ -1546,6 +1547,302 @@ class WebsiteBridgeServer:
         for token in stale_tokens:
             self.login_otp_sessions.pop(token, None)
 
+    @staticmethod
+    def _email_escape(value: Any) -> str:
+        return html.escape(str(value or ""), quote=True)
+
+    @staticmethod
+    def _format_email_datetime(value: str) -> str:
+        raw = str(value or "").strip()
+        if not raw:
+            return datetime.now(timezone.utc).strftime("%b %d, %Y %H:%M UTC")
+        try:
+            parsed = datetime.fromisoformat(raw)
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
+            parsed = parsed.astimezone(timezone.utc)
+            return parsed.strftime("%b %d, %Y %H:%M UTC")
+        except ValueError:
+            return raw
+
+    def _build_email_shell(self, preheader: str, body_html: str) -> str:
+        brand_name = self._email_escape(self.resend_from_name or self.smtp_from_name or "Roblox Keys")
+        preheader_text = self._email_escape(preheader)
+        return f"""<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{brand_name}</title>
+  <style>
+    body {{
+      margin: 0;
+      padding: 0;
+      background: #050505;
+      color: #ffffff;
+      font-family: Inter, Segoe UI, Helvetica Neue, Arial, sans-serif;
+    }}
+    .mail-bg {{
+      width: 100%;
+      background:
+        radial-gradient(circle at 12% 8%, rgba(250, 204, 21, 0.24), transparent 42%),
+        radial-gradient(circle at 88% 96%, rgba(250, 204, 21, 0.14), transparent 42%),
+        repeating-linear-gradient(
+          0deg,
+          rgba(250, 204, 21, 0.08) 0,
+          rgba(250, 204, 21, 0.08) 1px,
+          transparent 1px,
+          transparent 36px
+        ),
+        repeating-linear-gradient(
+          90deg,
+          rgba(250, 204, 21, 0.08) 0,
+          rgba(250, 204, 21, 0.08) 1px,
+          transparent 1px,
+          transparent 36px
+        ),
+        #050505;
+      padding: 28px 14px;
+    }}
+    .mail-card {{
+      max-width: 680px;
+      margin: 0 auto;
+      border-radius: 22px;
+      border: 1px solid rgba(250, 204, 21, 0.25);
+      background: linear-gradient(180deg, #0a0a0a 0%, #070707 100%);
+      box-shadow:
+        0 20px 55px rgba(0, 0, 0, 0.66),
+        0 0 0 1px rgba(250, 204, 21, 0.08) inset;
+      overflow: hidden;
+    }}
+    .mail-header {{
+      padding: 26px 28px 16px;
+      border-bottom: 1px solid rgba(250, 204, 21, 0.18);
+      background: linear-gradient(120deg, rgba(250, 204, 21, 0.2), rgba(0, 0, 0, 0));
+    }}
+    .brand-chip {{
+      display: inline-block;
+      padding: 7px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(250, 204, 21, 0.35);
+      background: rgba(250, 204, 21, 0.11);
+      color: #facc15;
+      font-size: 11px;
+      letter-spacing: 0.2em;
+      font-weight: 800;
+      text-transform: uppercase;
+    }}
+    .mail-body {{
+      padding: 22px 28px 28px;
+      color: #f8f8f8;
+    }}
+    .mail-footer {{
+      margin-top: 26px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      color: rgba(255, 255, 255, 0.62);
+      font-size: 12px;
+      line-height: 1.6;
+    }}
+    .panel {{
+      margin-top: 14px;
+      border-radius: 16px;
+      border: 1px solid rgba(250, 204, 21, 0.25);
+      background: linear-gradient(90deg, rgba(250, 204, 21, 0.11), rgba(250, 204, 21, 0.02));
+      padding: 14px 16px;
+    }}
+    .muted {{
+      color: rgba(255, 255, 255, 0.64);
+    }}
+    .accent {{
+      color: #facc15;
+    }}
+    .otp-code {{
+      margin-top: 14px;
+      border-radius: 16px;
+      border: 1px solid rgba(250, 204, 21, 0.35);
+      background: #0a0a0a;
+      color: #facc15;
+      font-size: 38px;
+      line-height: 1.15;
+      letter-spacing: 0.28em;
+      font-weight: 900;
+      text-align: center;
+      padding: 18px 12px;
+      box-shadow: 0 0 35px rgba(250, 204, 21, 0.15) inset;
+    }}
+    .order-row {{
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 11px 0;
+    }}
+    .order-row:first-child {{
+      border-top: 0;
+      padding-top: 0;
+    }}
+    .label {{
+      color: rgba(255, 255, 255, 0.58);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 700;
+    }}
+    .value {{
+      color: #ffffff;
+      font-size: 15px;
+      font-weight: 700;
+    }}
+    .credential-block {{
+      margin-top: 12px;
+      border: 1px solid rgba(250, 204, 21, 0.22);
+      border-radius: 12px;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 12px;
+      font-family: Consolas, Menlo, Monaco, monospace;
+      font-size: 13px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      color: #f5f5f5;
+    }}
+    @media (max-width: 640px) {{
+      .mail-header, .mail-body {{
+        padding-left: 18px;
+        padding-right: 18px;
+      }}
+      .otp-code {{
+        font-size: 31px;
+        letter-spacing: 0.2em;
+      }}
+    }}
+  </style>
+</head>
+<body>
+  <div style="display:none;visibility:hidden;opacity:0;height:0;width:0;overflow:hidden;mso-hide:all;">{preheader_text}</div>
+  <div class="mail-bg">
+    <div class="mail-card">
+      <div class="mail-header">
+        <span class="brand-chip">{brand_name}</span>
+      </div>
+      <div class="mail-body">
+        {body_html}
+      </div>
+    </div>
+  </div>
+</body>
+</html>"""
+
+    def _build_login_otp_html(self, brand_name: str, otp_code: str, ttl_minutes: int) -> str:
+        safe_brand = self._email_escape(brand_name)
+        safe_code = self._email_escape(otp_code)
+        safe_minutes = self._email_escape(ttl_minutes)
+        content = f"""
+<h1 style="margin:0;font-size:34px;line-height:1.1;letter-spacing:-0.02em;">Welcome Back</h1>
+<p class="muted" style="margin:10px 0 0;font-size:14px;">
+  Use this one-time code to verify your sign in to <span class="accent">{safe_brand}</span>.
+</p>
+<div class="otp-code">{safe_code}</div>
+<div class="panel">
+  <div class="label">Security Window</div>
+  <div class="value">Code expires in {safe_minutes} minute(s)</div>
+</div>
+<div class="mail-footer">
+  If you did not request this login, you can safely ignore this email.
+</div>
+"""
+        return self._build_email_shell(
+            f"{safe_brand} verification code: {safe_code}",
+            content,
+        )
+
+    def _build_purchase_html(
+        self,
+        brand_name: str,
+        order_id: str,
+        created_at: str,
+        total: str,
+        payment_method: str,
+        item_rows: list[dict[str, str]],
+        credential_rows: list[dict[str, str]],
+    ) -> str:
+        safe_brand = self._email_escape(brand_name)
+        safe_order_id = self._email_escape(order_id)
+        safe_created = self._email_escape(self._format_email_datetime(created_at))
+        safe_total = self._email_escape(total)
+        safe_payment = self._email_escape(payment_method or "N/A")
+
+        items_html = ""
+        if item_rows:
+            rows: list[str] = []
+            for row in item_rows:
+                name = self._email_escape(row.get("name"))
+                qty = self._email_escape(row.get("qty"))
+                price = self._email_escape(row.get("price"))
+                rows.append(
+                    f"""<div class="order-row">
+  <div class="value">{name}</div>
+  <div class="muted" style="font-size:13px;">Qty: {qty} • {price}</div>
+</div>"""
+                )
+            items_html = "".join(rows)
+        else:
+            items_html = '<div class="muted" style="font-size:13px;">No line items.</div>'
+
+        creds_html = ""
+        if credential_rows:
+            blocks: list[str] = []
+            for row in credential_rows:
+                line_id = self._email_escape(row.get("line_id"))
+                value = self._email_escape(row.get("value"))
+                blocks.append(
+                    f"""<div style="margin-top:10px;">
+  <div class="label" style="margin-bottom:6px;">{line_id}</div>
+  <div class="credential-block">{value}</div>
+</div>"""
+                )
+            creds_html = "".join(blocks)
+        else:
+            creds_html = '<div class="muted" style="font-size:13px;">No credentials attached.</div>'
+
+        content = f"""
+<h1 style="margin:0;font-size:32px;line-height:1.1;letter-spacing:-0.02em;">Order Confirmed</h1>
+<p class="muted" style="margin:10px 0 0;font-size:14px;">
+  Thanks for shopping with <span class="accent">{safe_brand}</span>. Your digital order is now delivered.
+</p>
+
+<div class="panel" style="margin-top:16px;">
+  <div class="label">Order ID</div>
+  <div class="value">{safe_order_id}</div>
+  <div style="height:10px;"></div>
+  <div class="label">Date</div>
+  <div class="value">{safe_created}</div>
+  <div style="height:10px;"></div>
+  <div class="label">Payment Method</div>
+  <div class="value">{safe_payment}</div>
+  <div style="height:10px;"></div>
+  <div class="label">Total</div>
+  <div class="value" style="color:#facc15;font-size:24px;">{safe_total}</div>
+</div>
+
+<div style="margin-top:20px;">
+  <div class="label">Items</div>
+  <div style="margin-top:10px;border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:12px;background:rgba(255,255,255,0.02);">
+    {items_html}
+  </div>
+</div>
+
+<div style="margin-top:20px;">
+  <div class="label">Delivered Credentials</div>
+  {creds_html}
+</div>
+
+<div class="mail-footer">
+  Need help? Contact support and include your order ID: <span class="accent">{safe_order_id}</span>.
+</div>
+"""
+        return self._build_email_shell(
+            f"{safe_brand} order {safe_order_id} confirmed",
+            content,
+        )
+
     async def _send_login_otp_email(self, email: str, otp_code: str) -> bool:
         ttl_minutes = max(1, self.login_otp_ttl_seconds // 60)
         brand_name = self.resend_from_name or self.smtp_from_name or "Roblox Keys"
@@ -1555,7 +1852,8 @@ class WebsiteBridgeServer:
             f"This code expires in {ttl_minutes} minute(s).\n"
             "If you did not request this login, you can ignore this email."
         )
-        return await self._send_email(email, subject, body)
+        html_body = self._build_login_otp_html(brand_name, otp_code, ttl_minutes)
+        return await self._send_email(email, subject, body, html_body=html_body)
 
     async def _send_purchase_email(self, order_record: dict[str, Any]) -> bool:
         user_data = order_record.get("user")
@@ -1572,6 +1870,7 @@ class WebsiteBridgeServer:
         credentials = order_record.get("credentials", {})
 
         item_lines: list[str] = []
+        item_rows: list[dict[str, str]] = []
         if isinstance(items, list):
             for item in items:
                 if not isinstance(item, dict):
@@ -1580,14 +1879,23 @@ class WebsiteBridgeServer:
                 qty = max(1, self._to_int(item.get("quantity"), default=1) or 1)
                 price = self._to_float(item.get("price"), default=0.0) or 0.0
                 item_lines.append(f"- {name} x{qty} (${price:.2f})")
+                item_rows.append(
+                    {
+                        "name": name,
+                        "qty": str(qty),
+                        "price": f"${price:.2f}",
+                    }
+                )
 
         credential_lines: list[str] = []
+        credential_rows: list[dict[str, str]] = []
         if isinstance(credentials, dict):
             for line_id, raw in credentials.items():
                 value = str(raw or "").strip()
                 if not value:
                     continue
                 credential_lines.append(f"{line_id}:\n{value}")
+                credential_rows.append({"line_id": str(line_id), "value": value})
 
         details = "\n".join(item_lines) if item_lines else "- (No line items)"
         credentials_text = "\n\n".join(credential_lines) if credential_lines else "No credentials attached."
@@ -1602,31 +1910,46 @@ class WebsiteBridgeServer:
             f"Delivered Credentials:\n{credentials_text}\n\n"
             "If you need support, contact us with your order ID."
         )
-        sent = await self._send_email(email, subject, body)
+        html_body = self._build_purchase_html(
+            brand_name=brand_name,
+            order_id=order_id,
+            created_at=created_at,
+            total=total,
+            payment_method=str(order_record.get("paymentMethod") or "").strip(),
+            item_rows=item_rows,
+            credential_rows=credential_rows,
+        )
+        sent = await self._send_email(email, subject, body, html_body=html_body)
         if sent:
             logger.info(f"Purchase confirmation email sent for order {order_id} to {email}")
         return sent
 
-    async def _send_email(self, to_email: str, subject: str, body: str) -> bool:
+    async def _send_email(self, to_email: str, subject: str, body: str, html_body: Optional[str] = None) -> bool:
         recipient = str(to_email or "").strip()
         if not recipient:
             return False
         if self.email_provider == "resend":
-            return await self._send_email_via_resend(recipient, subject, body)
+            return await self._send_email_via_resend(recipient, subject, body, html_body=html_body)
 
         if self.email_provider == "smtp":
-            return await self._send_email_via_smtp(recipient, subject, body)
+            return await self._send_email_via_smtp(recipient, subject, body, html_body=html_body)
 
         # auto: prefer Resend (HTTPS) on hosted runtimes, fallback to SMTP
         if self._is_resend_ready():
-            sent = await self._send_email_via_resend(recipient, subject, body)
+            sent = await self._send_email_via_resend(recipient, subject, body, html_body=html_body)
             if sent:
                 return True
         if self._is_smtp_ready():
-            return await self._send_email_via_smtp(recipient, subject, body)
+            return await self._send_email_via_smtp(recipient, subject, body, html_body=html_body)
         return False
 
-    async def _send_email_via_resend(self, recipient: str, subject: str, body: str) -> bool:
+    async def _send_email_via_resend(
+        self,
+        recipient: str,
+        subject: str,
+        body: str,
+        html_body: Optional[str] = None,
+    ) -> bool:
         if not self._is_resend_ready():
             return False
 
@@ -1638,6 +1961,8 @@ class WebsiteBridgeServer:
             "subject": subject,
             "text": body,
         }
+        if html_body:
+            payload["html"] = html_body
         if self.resend_reply_to:
             payload["reply_to"] = self.resend_reply_to
 
@@ -1661,7 +1986,13 @@ class WebsiteBridgeServer:
             logger.error(f"Resend send failed for {recipient}: {exc}")
             return False
 
-    async def _send_email_via_smtp(self, recipient: str, subject: str, body: str) -> bool:
+    async def _send_email_via_smtp(
+        self,
+        recipient: str,
+        subject: str,
+        body: str,
+        html_body: Optional[str] = None,
+    ) -> bool:
         if not self._is_smtp_ready():
             return False
 
@@ -1670,6 +2001,8 @@ class WebsiteBridgeServer:
         message["From"] = f"{self.smtp_from_name} <{self.smtp_from_email}>"
         message["To"] = recipient
         message.set_content(body)
+        if html_body:
+            message.add_alternative(html_body, subtype="html")
 
         def _deliver():
             context = ssl.create_default_context()
