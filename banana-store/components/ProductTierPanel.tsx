@@ -163,7 +163,7 @@ export const ProductTierPanel: React.FC<ProductTierPanelProps> = ({
 
                 <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-4">
                   <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
-                    <div className="relative h-20 w-28 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-black sm:h-20 sm:w-28">
+                    <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-black sm:h-20 sm:w-20">
                       <img
                         src={tierImage}
                         alt={tier.name}

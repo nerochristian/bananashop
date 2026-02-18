@@ -253,8 +253,8 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, selectedT
                 <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-black p-2">
                   <button 
                     onClick={() => updateQuantity(quantity - 1)}
-                    disabled={!isTierView && isTiered}
-                    className="flex h-10 w-10 items-center justify-center text-white/20 transition-colors hover:text-white sm:h-12 sm:w-12"
+                    disabled={(!isTierView && isTiered) || quantity <= 1}
+                    className="flex h-10 w-10 items-center justify-center text-white/20 transition-colors hover:text-white disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:text-white/20 sm:h-12 sm:w-12"
                   >
                     <Minus className="w-5 h-5" />
                   </button>
@@ -267,7 +267,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, selectedT
                   <button 
                     onClick={() => updateQuantity(quantity + 1)}
                     disabled={(!isTierView && isTiered) || isOutOfStock || quantity >= currentStock}
-                    className="flex h-10 w-10 items-center justify-center text-white/20 transition-colors hover:text-white sm:h-12 sm:w-12"
+                    className="flex h-10 w-10 items-center justify-center text-white/20 transition-colors hover:text-white disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:text-white/20 sm:h-12 sm:w-12"
                   >
                     <Plus className="w-5 h-5" />
                   </button>
@@ -278,7 +278,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, selectedT
                 <button 
                   disabled={isOutOfStock}
                   onClick={() => onAddToCart(product, quantity, selectedTier || undefined)}
-                  className="flex w-full items-center justify-center gap-3 rounded-2xl bg-[#facc15] py-4 text-xs font-black uppercase tracking-widest text-black shadow-xl shadow-yellow-400/10 transition-all active:scale-[0.98] hover:bg-yellow-300 sm:py-5"
+                  className="flex w-full items-center justify-center gap-3 rounded-2xl bg-[#facc15] py-4 text-xs font-black uppercase tracking-widest text-black shadow-xl shadow-yellow-400/10 transition-all active:scale-[0.98] hover:bg-yellow-300 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#facc15] sm:py-5"
                 >
                   <ShoppingCart className="w-4 h-4" />
                   Add to Cart
@@ -286,7 +286,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, selectedT
                 <button 
                   disabled={isOutOfStock}
                   onClick={() => onBuyNow(product, quantity, selectedTier || undefined)}
-                  className="flex w-full items-center justify-center gap-3 rounded-2xl border border-white/5 bg-white/5 py-4 text-xs font-black uppercase tracking-widest text-white/90 transition-all hover:bg-white/10 sm:py-5"
+                  className="flex w-full items-center justify-center gap-3 rounded-2xl border border-white/5 bg-white/5 py-4 text-xs font-black uppercase tracking-widest text-white/90 transition-all hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white/5 sm:py-5"
                 >
                   <Zap className="w-4 h-4 text-[#facc15]" />
                   Buy Now

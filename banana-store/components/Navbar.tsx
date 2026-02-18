@@ -1,4 +1,5 @@
 import React from 'react';
+import { ShoppingCart } from 'lucide-react';
 import { BRAND_CONFIG } from '../config/brandConfig';
 
 interface NavbarProps {
@@ -8,7 +9,7 @@ interface NavbarProps {
   onLogoClick: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ onAdminClick, onLogoClick }) => {
+export const Navbar: React.FC<NavbarProps> = ({ cartCount, onCartClick, onAdminClick, onLogoClick }) => {
   const openExternal = (url: string) => {
     if (!url || url === '#') return;
     window.open(url, '_blank', 'noopener,noreferrer');
@@ -55,10 +56,23 @@ export const Navbar: React.FC<NavbarProps> = ({ onAdminClick, onLogoClick }) => 
             Terms
           </button>
 
-          <button onClick={() => (window.location.href = '/privacy')} className={navItemClass}>
+          <button onClick={() => (window.location.href = '/privacy')} className={`${navItemClass} hidden sm:inline-flex`}>
             Privacy
           </button>
         </div>
+
+        <button
+          onClick={onCartClick}
+          aria-label="Open cart"
+          className="relative flex items-center justify-center rounded-full border border-white/10 bg-black/40 p-2.5 backdrop-blur-xl transition-all hover:bg-white/10"
+        >
+          <ShoppingCart className="h-5 w-5 text-white/80" />
+          {cartCount > 0 && (
+            <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#facc15] text-[9px] font-black text-black">
+              {cartCount > 9 ? '9+' : cartCount}
+            </span>
+          )}
+        </button>
       </div>
     </nav>
   );

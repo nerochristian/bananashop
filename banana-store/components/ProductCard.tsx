@@ -66,7 +66,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onView }) => 
       )}
 
       {/* Visual Header - 16:9 */}
-      <div className={`relative flex aspect-video w-full items-center justify-center overflow-hidden border-b border-white/5 bg-gradient-to-br ${getHeaderGradient(product.type)} md:aspect-auto md:w-[42%] md:border-b-0 md:border-r`}>
+      <div className={`relative flex aspect-square w-full items-center justify-center overflow-hidden border-b border-white/5 bg-gradient-to-br ${getHeaderGradient(product.type)} md:aspect-square md:w-[42%] md:border-b-0 md:border-r`}>
         {/* Top-Left Category Badge */}
         <div className="absolute left-3 top-3 flex items-center gap-2 rounded-lg border border-white/10 bg-black/50 px-2.5 py-1.5 backdrop-blur-lg transition-transform duration-500 group-hover:translate-x-1 sm:left-4 sm:top-4">
           {badgeIcon === 'key' ? (

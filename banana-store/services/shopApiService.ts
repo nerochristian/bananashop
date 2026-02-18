@@ -79,7 +79,23 @@ const resolveCatalogImageUrl = (value: unknown): string => {
   const raw = readString(value);
   if (!raw) return '';
   if (/^(data:|blob:)/i.test(raw)) return raw;
-  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(raw)) return raw;
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(raw)) {
+    // Keep media links pinned to current API base so old/private hosts do not break images.
+    if (STORE_API_BASE_URL) {
+      try {
+        const parsed = new URL(raw);
+        const normalizedMediaPath = parsed.pathname.startsWith('/media/')
+          ? `/shop${parsed.pathname}`
+          : parsed.pathname;
+        if (normalizedMediaPath.startsWith('/shop/media/')) {
+          return `${STORE_API_BASE_URL}${normalizedMediaPath}${parsed.search || ''}`;
+        }
+      } catch {
+        // Keep original URL if parsing fails.
+      }
+    }
+    return raw;
+  }
   if (raw.startsWith('//')) {
     const protocol = typeof window !== 'undefined' ? window.location.protocol : 'https:';
     return `${protocol}${raw}`;
@@ -124,12 +140,14 @@ const normalizeProduct = (p: ProductPayload): Product => {
   }
 
   const tiers = Array.isArray(p.tiers) ? p.tiers.map(normalizeTier) : [];
+  const firstTierImage = tiers.find((tier) => readString(tier.image))?.image || '';
   const productImage = pickFirstString(
     p.image,
     (p as Record<string, unknown>).imageUrl,
     (p as Record<string, unknown>).image_url,
     (p as Record<string, unknown>).thumbnail,
-    (p as Record<string, unknown>).icon
+    (p as Record<string, unknown>).icon,
+    firstTierImage
   );
   const bannerImage = pickFirstString(
     p.bannerImage,
@@ -570,9 +588,13 @@ export const ShopApiService = {
     if (!response.ok || !payload.asset?.url || !payload.asset?.id) {
       throw new Error(payload.message || `Image upload failed (${response.status})`);
     }
+    const assetId = String(payload.asset.id);
+    const generatedMediaUrl = STORE_API_BASE_URL ? `${STORE_API_BASE_URL}/shop/media/${assetId}` : `/shop/media/${assetId}`;
     return {
-      id: String(payload.asset.id),
-      url: resolveCatalogImageUrl(String(payload.asset.url)),
+      id: assetId,
+      // Always persist/use a deterministic generated media URL from asset id.
+      // This prevents broken hosts from reverse-proxy environments.
+      url: resolveCatalogImageUrl(generatedMediaUrl || String(payload.asset.url)),
       filename: String(payload.asset.filename || file.name || ''),
       mimeType: String(payload.asset.mimeType || file.type || ''),
       size: Number(payload.asset.size || file.size || 0),
