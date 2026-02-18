@@ -2339,7 +2339,7 @@ class WebsiteBridgeServer:
                 success_glue = "&" if "?" in success_base else "?"
                 cancel_glue = "&" if "?" in cancel_base else "?"
                 return_url = f"{success_base}{success_glue}checkout=success&payment_method=paypal&token={pending_token}"
-                cancel_return_url = f"{cancel_base}{cancel_glue}checkout=cancelled&payment_method=paypal"
+                cancel_return_url = f"{cancel_base}{cancel_glue}checkout=cancel&payment_method=paypal"
 
                 order_id_str = str(order_payload.get("id") or pending_token)
                 paypal_order_body: dict[str, Any] = {

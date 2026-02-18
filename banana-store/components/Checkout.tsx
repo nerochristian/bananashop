@@ -36,22 +36,17 @@ export const Checkout: React.FC<CheckoutProps> = ({ isOpen, onClose, items, curr
     if (!isOpen) return;
     ShopApiService.getPaymentMethods()
       .then((methods) => {
-        // Overlay local settings config onto server availability capabilities
-        const merged = { ...methods };
-        if (settings.paypalEmail) {
-          merged.paypal = { enabled: true, automated: false };
-        }
-        setMethodAvailability(merged);
+        setMethodAvailability(methods);
       })
       .catch((methodsError) => {
         console.warn('Failed to load payment method availability:', methodsError);
         setMethodAvailability({
           card: { enabled: false, automated: true },
-          paypal: { enabled: Boolean(settings.paypalEmail), automated: false },
+          paypal: { enabled: false, automated: false },
           crypto: { enabled: false, automated: false },
         });
       });
-  }, [isOpen, settings.paypalEmail]);
+  }, [isOpen]);
 
   const handleCheckout = () => {
     if (!currentUser) return;
