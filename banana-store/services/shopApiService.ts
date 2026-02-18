@@ -49,13 +49,34 @@ const buildHeaders = (withJsonContentType: boolean = true): HeadersInit => {
   return headers;
 };
 
-const getTurnstileToken = (): string => {
-  try { return sessionStorage.getItem('cf-turnstile-token') || ''; } catch { return ''; }
+const getTurnstileToken = (): Promise<string> => {
+  return new Promise((resolve) => {
+    try {
+      const w = window as any;
+      // If the Turnstile widget was rendered on page load, reset it to get a fresh token
+      if (w.turnstile && document.getElementById('cf-turnstile-widget')) {
+        // Store a one-time callback that resolves when the widget produces a new token
+        let resolved = false;
+        const origToken = sessionStorage.getItem('cf-turnstile-token') || '';
+        const checkNew = () => {
+          const t = sessionStorage.getItem('cf-turnstile-token') || '';
+          if (t && t !== origToken && !resolved) { resolved = true; resolve(t); }
+        };
+        // The render callback in index.html writes to sessionStorage, so reset will re-trigger it
+        w.turnstile.reset('#cf-turnstile-widget');
+        // Poll briefly for the new token (the callback in index.html sets it)
+        const poll = setInterval(() => { checkNew(); if (resolved) clearInterval(poll); }, 100);
+        setTimeout(() => { clearInterval(poll); if (!resolved) { resolved = true; resolve(origToken); } }, 4000);
+      } else {
+        resolve(sessionStorage.getItem('cf-turnstile-token') || '');
+      }
+    } catch { resolve(''); }
+  });
 };
 
-const buildSecureHeaders = (withJsonContentType: boolean = true): HeadersInit => {
+const buildSecureHeaders = async (withJsonContentType: boolean = true): Promise<HeadersInit> => {
   const headers = buildHeaders(withJsonContentType);
-  const turnstile = getTurnstileToken();
+  const turnstile = await getTurnstileToken();
   if (turnstile) {
     (headers as Record<string, string>)['cf-turnstile-response'] = turnstile;
   }
@@ -439,7 +460,7 @@ export const ShopApiService = {
   async authLogin(email: string, password: string): Promise<AuthLoginResult> {
     const response = await withTimeout(resolvePath('/auth/login'), {
       method: 'POST',
-      headers: buildSecureHeaders(),
+      headers: await buildSecureHeaders(),
       body: JSON.stringify({ email, password }),
     });
     const payload = await response.json().catch(() => ({})) as {
@@ -675,7 +696,7 @@ export const ShopApiService = {
   async buy(order: Order, paymentMethod: string, paymentVerified: boolean = false): Promise<{ ok: boolean; products?: Product[]; orderId?: string; order?: Order }> {
     const response = await withTimeout(resolvePath('/buy'), {
       method: 'POST',
-      headers: buildSecureHeaders(),
+      headers: await buildSecureHeaders(),
       body: JSON.stringify({ order, paymentMethod, paymentVerified }),
     });
     if (!response.ok) {
@@ -716,7 +737,7 @@ export const ShopApiService = {
     return response.json() as Promise<{ ok: boolean; checkoutUrl?: string; token?: string; sessionId?: string; trackId?: string; manual?: boolean }>;
   },
 
-  async confirmPayment(token: string, sessionId: string, paymentMethod: string = 'card'): Promise<{ ok: boolean; order?: Order; products?: Product[] }> {
+  async confirmPayment(token: string, sessionId: string, paymentMethod: string = 'card', paypalOrderId: string = ''): Promise<{ ok: boolean; order?: Order; products?: Product[] }> {
     const response = await withTimeout(resolvePath('/payments/confirm'), {
       method: 'POST',
       headers: buildHeaders(),
@@ -724,6 +745,7 @@ export const ShopApiService = {
         token,
         sessionId: paymentMethod === 'card' ? sessionId : '',
         trackId: paymentMethod === 'crypto' ? sessionId : '',
+        paypalOrderId: paymentMethod === 'paypal' ? paypalOrderId : '',
         paymentMethod,
       }),
     });

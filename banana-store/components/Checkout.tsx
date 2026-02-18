@@ -61,7 +61,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ isOpen, onClose, items, curr
       return;
     }
     if (paymentMethod === 'paypal' && !methodAvailability.paypal.enabled) {
-      setError('PayPal is not configured yet. Set PayPal email in Admin Settings.');
+      setError('PayPal is not configured yet.');
       setStep('payment');
       return;
     }
@@ -69,43 +69,6 @@ export const Checkout: React.FC<CheckoutProps> = ({ isOpen, onClose, items, curr
       setError('Crypto checkout is not configured yet. Set OXAPAY_MERCHANT_API_KEY on your API.');
       setStep('payment');
       return;
-    }
-
-    if (paymentMethod === 'paypal') {
-      const emailOrLink = settings.paypalEmail.trim();
-      if (!emailOrLink) {
-        setError('PayPal email is missing in settings.');
-        return;
-      }
-
-      let url = '';
-      if (emailOrLink.startsWith('http')) {
-        url = emailOrLink;
-      } else if (emailOrLink.includes('paypal.me')) {
-        url = `https://${emailOrLink}`;
-      } else {
-        // Fallback to a basic PayPal.Me link structure if just username/email provided, 
-        // though email technically isn't a direct paypal.me link. 
-        // Better to assume if it looks like an email, we show it to the user or try to link to sending money.
-        // For now, let's treat it as a paypal.me user if it doesn't look like an email, or just link to paypal generic send.
-        if (emailOrLink.includes('@')) {
-          // It's an email. We can't deep link to "send to email" easily without business account or generated buttons.
-          // We will open a generic paypal send page and ask user to send to this email.
-          url = `https://www.paypal.com/myaccount/transfer/homepage/buy`;
-          // Ideally we'd copy it to clipboard or show it. 
-          // Let's implement a specific prompt/modal for manual PayPal if we can, or just redirect.
-          // For simplicity in this "execute" logic, we will open the link.
-        } else {
-          url = `https://paypal.me/${emailOrLink}/${total.toFixed(2)}`;
-        }
-      }
-
-      if (url) window.open(url, '_blank', 'noopener,noreferrer');
-
-      // We still proceed to "processing" to simulate the manual verification flow?
-      // Or maybe we show a "Confirm you sent it" step.
-      // The current flow goes to processing -> success blindly for manual methods sometimes.
-      // Let's keep existing flow but add the link opening.
     }
 
     setError('');
@@ -131,18 +94,22 @@ export const Checkout: React.FC<CheckoutProps> = ({ isOpen, onClose, items, curr
         const cancelUrl = `${window.location.origin}${window.location.pathname}`;
         const payment = await ShopApiService.createPayment(order, paymentMethod, successUrl, cancelUrl);
 
-        // Manual override for PayPal if we handled it client-side
-        if (paymentMethod === 'paypal') {
-          // For manual PayPal, we don't rely on the API checkoutUrl if we just opened one.
-          // But we still create the order.
-          // If the API returns a manual=true, it means it created a pending order.
-        } else if (!payment.ok) {
+        if (!payment.ok) {
           throw new Error('Failed to create payment session.');
         }
 
-        if (paymentMethod === 'card') {
+        // Card and PayPal both redirect to external checkout pages
+        if (paymentMethod === 'card' || paymentMethod === 'paypal') {
           if (!payment.checkoutUrl) {
-            throw new Error('Failed to create card payment session.');
+            throw new Error(`Failed to create ${paymentMethod} payment session.`);
+          }
+          // Store token for confirmation on return
+          if (payment.token) {
+            try { sessionStorage.setItem('pending_payment_token', payment.token); } catch { }
+            try { sessionStorage.setItem('pending_payment_method', paymentMethod); } catch { }
+          }
+          if ((payment as any).paypalOrderId) {
+            try { sessionStorage.setItem('pending_paypal_order_id', (payment as any).paypalOrderId); } catch { }
           }
           window.location.href = payment.checkoutUrl;
           return;
@@ -152,32 +119,27 @@ export const Checkout: React.FC<CheckoutProps> = ({ isOpen, onClose, items, curr
           if (!payment.checkoutUrl) {
             throw new Error('Failed to create OxaPay payment session.');
           }
+          if (payment.token) {
+            try { sessionStorage.setItem('pending_payment_token', payment.token); } catch { }
+            try { sessionStorage.setItem('pending_payment_method', paymentMethod); } catch { }
+          }
           window.location.href = payment.checkoutUrl;
           return;
         }
 
-        if (payment.checkoutUrl && paymentMethod !== 'paypal') {
+        if (payment.checkoutUrl) {
           window.open(payment.checkoutUrl, '_blank', 'noopener,noreferrer');
         }
 
-        // For manual methods (PayPal / Crypto manual), we mark as pending and show success (which says "Clearance Granted" / "Credentials generated").
-        // Wait, "Credentials generated" implies instant delivery. Validating manual payment requires admin action.
-        // The `ShopApiService.buy` call with `paymentVerified=true` (which is hardcoded in original file line 111) forces completion?
-        // Let's check line 111 in original: `const result = await ShopApiService.buy(order, paymentMethod, true);`
-        // If we want manual verification, we should pass `false` or let the backend decide.
-        // For now, to keep it simple and working as "demo" or "trusted" mode as per likely intent of "go", we will keep it as is, 
-        // essentially treating it as auto-approved or pending-approved.
-        // Actually, for PayPal manual, we probably want to instruct the user to wait. 
-        // But the user prompt "go" implies "just make it work".
-
-        const result = await ShopApiService.buy(order, paymentMethod, true); // paymentVerified = true (instant)
+        // For manual crypto fallback only
+        const result = await ShopApiService.buy(order, paymentMethod, true);
         if (!result.ok) {
           throw new Error('Purchase failed.');
         }
 
         const finalOrder: Order = result.order || {
           ...order,
-          status: 'completed', // Force completed for visual satisfaction if API didn't
+          status: 'completed',
         };
 
         if (result.products && result.products.length > 0) {

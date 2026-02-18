@@ -170,7 +170,11 @@ class WebsiteBridgeServer:
         )
         self.stripe_secret_key = (os.getenv("STRIPE_SECRET_KEY") or "").strip()
         self.stripe_currency = (os.getenv("STRIPE_CURRENCY") or "usd").strip().lower() or "usd"
-        self.paypal_checkout_url = (os.getenv("PAYPAL_CHECKOUT_URL") or "").strip()
+        self.paypal_client_id = (os.getenv("PAYPAL_CLIENT_ID") or "").strip()
+        self.paypal_client_secret = (os.getenv("PAYPAL_CLIENT_SECRET") or "").strip()
+        self.paypal_api_base = (os.getenv("PAYPAL_API_BASE") or "https://api-m.paypal.com").strip().rstrip("/")
+        self._paypal_access_token: str = ""
+        self._paypal_token_expires_at: float = 0.0
         self.crypto_checkout_url = (os.getenv("CRYPTO_CHECKOUT_URL") or "").strip()
         self.oxapay_merchant_api_key = (os.getenv("OXAPAY_MERCHANT_API_KEY") or "").strip()
         self.oxapay_api_url = (os.getenv("OXAPAY_API_URL") or "https://api.oxapay.com").strip().rstrip("/")
@@ -1343,7 +1347,7 @@ class WebsiteBridgeServer:
         crypto_enabled = crypto_automated or bool(self.crypto_checkout_url)
         methods = {
             "card": {"enabled": bool(self.stripe_secret_key), "automated": True},
-            "paypal": {"enabled": bool(self.paypal_checkout_url), "automated": False},
+            "paypal": {"enabled": bool(self.paypal_client_id and self.paypal_client_secret), "automated": True},
             "crypto": {"enabled": crypto_enabled, "automated": crypto_automated},
         }
         result = {"ok": True, "methods": methods}
@@ -2036,6 +2040,43 @@ class WebsiteBridgeServer:
 
         return web.json_response({"ok": False, "message": "product not found"}, status=404)
 
+    async def _get_paypal_access_token(self) -> str:
+        import time as _time
+        now = _time.time()
+        if self._paypal_access_token and now < self._paypal_token_expires_at:
+            return self._paypal_access_token
+        if not self.paypal_client_id or not self.paypal_client_secret:
+            return ""
+        try:
+            import base64
+            credentials = base64.b64encode(
+                f"{self.paypal_client_id}:{self.paypal_client_secret}".encode()
+            ).decode()
+            async with ClientSession() as session:
+                async with session.post(
+                    f"{self.paypal_api_base}/v1/oauth2/token",
+                    headers={
+                        "Authorization": f"Basic {credentials}",
+                        "Content-Type": "application/x-www-form-urlencoded",
+                    },
+                    data="grant_type=client_credentials",
+                    timeout=ClientTimeout(total=10),
+                ) as resp:
+                    if resp.status >= 300:
+                        body = await resp.text()
+                        logger.error(f"PayPal OAuth failed ({resp.status}): {body}")
+                        return ""
+                    data = await resp.json(content_type=None)
+                    token = str(data.get("access_token") or "").strip()
+                    expires_in = int(data.get("expires_in", 32400))
+                    if token:
+                        self._paypal_access_token = token
+                        self._paypal_token_expires_at = now + min(expires_in, 28800)
+                    return token
+        except Exception as exc:
+            logger.error(f"PayPal OAuth error: {exc}")
+            return ""
+
     async def _prepare_order_items(
         self, raw_items: Any
     ) -> tuple[Optional[list[dict[str, Any]]], float, Optional[web.Response]]:
@@ -2282,21 +2323,111 @@ class WebsiteBridgeServer:
                     }
                 )
 
-            external_url = ""
             if payment_method == "paypal":
-                external_url = self.paypal_checkout_url
-            elif payment_method == "crypto":
-                external_url = self.crypto_checkout_url
+                if not self.paypal_client_id or not self.paypal_client_secret:
+                    return web.json_response({"ok": False, "message": "PayPal is not configured"}, status=503)
 
-            if not external_url:
+                access_token = await self._get_paypal_access_token()
+                if not access_token:
+                    return web.json_response({"ok": False, "message": "failed to authenticate with PayPal"}, status=502)
+
+                pending_token = secrets.token_urlsafe(24)
+                pending = await self._load_pending_payments()
+
+                success_base = success_url or self.allowed_origins[0]
+                cancel_base = cancel_url or self.allowed_origins[0]
+                success_glue = "&" if "?" in success_base else "?"
+                cancel_glue = "&" if "?" in cancel_base else "?"
+                return_url = f"{success_base}{success_glue}checkout=success&payment_method=paypal&token={pending_token}"
+                cancel_return_url = f"{cancel_base}{cancel_glue}checkout=cancelled&payment_method=paypal"
+
+                order_id_str = str(order_payload.get("id") or pending_token)
+                paypal_order_body: dict[str, Any] = {
+                    "intent": "CAPTURE",
+                    "purchase_units": [
+                        {
+                            "reference_id": order_id_str,
+                            "amount": {
+                                "currency_code": self.stripe_currency.upper() or "USD",
+                                "value": f"{computed_total:.2f}",
+                            },
+                            "description": f"Order {order_id_str}",
+                        }
+                    ],
+                    "application_context": {
+                        "return_url": return_url,
+                        "cancel_url": cancel_return_url,
+                        "user_action": "PAY_NOW",
+                        "brand_name": "Roblox Keys",
+                    },
+                }
+
+                async with ClientSession() as session:
+                    async with session.post(
+                        f"{self.paypal_api_base}/v2/checkout/orders",
+                        json=paypal_order_body,
+                        headers={
+                            "Authorization": f"Bearer {access_token}",
+                            "Content-Type": "application/json",
+                            "Prefer": "return=representation",
+                        },
+                    ) as pp_resp:
+                        try:
+                            pp_data = await pp_resp.json(content_type=None)
+                        except Exception:
+                            pp_raw = await pp_resp.text()
+                            pp_data = {"raw": pp_raw}
+                        if pp_resp.status >= 300:
+                            logger.error(f"PayPal order creation failed: {pp_data}")
+                            return web.json_response({"ok": False, "message": "failed to create PayPal order"}, status=502)
+
+                paypal_order_id = str(pp_data.get("id") or "").strip()
+                approve_url = ""
+                for link in (pp_data.get("links") or []):
+                    if isinstance(link, dict) and link.get("rel") == "approve":
+                        approve_url = str(link.get("href") or "").strip()
+                        break
+                if not approve_url:
+                    for link in (pp_data.get("links") or []):
+                        if isinstance(link, dict) and link.get("rel") == "payer-action":
+                            approve_url = str(link.get("href") or "").strip()
+                            break
+
+                if not approve_url or not paypal_order_id:
+                    logger.error(f"PayPal order response missing approve URL: {pp_data}")
+                    return web.json_response({"ok": False, "message": "invalid PayPal order response"}, status=502)
+
+                pending[pending_token] = {
+                    "order": order_payload,
+                    "user": session_user,
+                    "paymentMethod": "paypal",
+                    "gateway": "paypal",
+                    "paypalOrderId": paypal_order_id,
+                    "createdAt": datetime.now(timezone.utc).isoformat(),
+                    "completed": False,
+                }
+                await self._save_pending_payments(pending)
+
                 return web.json_response(
-                    {"ok": False, "message": f"{payment_method} is not configured"},
-                    status=400,
+                    {
+                        "ok": True,
+                        "checkoutUrl": approve_url,
+                        "token": pending_token,
+                        "paypalOrderId": paypal_order_id,
+                        "manual": False,
+                    }
                 )
 
-            query = urlencode({"amount": f"{computed_total:.2f}", "order_id": str(order_payload.get("id", ""))})
-            glue = "&" if "?" in external_url else "?"
-            return web.json_response({"ok": True, "checkoutUrl": f"{external_url}{glue}{query}", "manual": True})
+            if payment_method == "crypto":
+                external_url = self.crypto_checkout_url
+                if not external_url:
+                    return web.json_response(
+                        {"ok": False, "message": "crypto is not configured"},
+                        status=400,
+                    )
+                query = urlencode({"amount": f"{computed_total:.2f}", "order_id": str(order_payload.get("id", ""))})
+                glue = "&" if "?" in external_url else "?"
+                return web.json_response({"ok": True, "checkoutUrl": f"{external_url}{glue}{query}", "manual": True})
 
         if not self.stripe_secret_key:
             return web.json_response({"ok": False, "message": "Stripe is not configured"}, status=503)
@@ -2402,6 +2533,74 @@ class WebsiteBridgeServer:
         if requested_method and requested_method != stored_method:
             return web.json_response({"ok": False, "message": "payment method mismatch"}, status=409)
         payment_method = stored_method
+
+        if payment_method == "paypal":
+            if not self.paypal_client_id or not self.paypal_client_secret:
+                return web.json_response({"ok": False, "message": "PayPal is not configured"}, status=503)
+
+            paypal_order_id = str(pending_entry.get("paypalOrderId") or payload.get("paypalOrderId") or "").strip()
+            if not paypal_order_id:
+                return web.json_response({"ok": False, "message": "paypalOrderId is required for PayPal verification"}, status=400)
+
+            access_token = await self._get_paypal_access_token()
+            if not access_token:
+                return web.json_response({"ok": False, "message": "failed to authenticate with PayPal"}, status=502)
+
+            async with ClientSession() as session:
+                async with session.post(
+                    f"{self.paypal_api_base}/v2/checkout/orders/{paypal_order_id}/capture",
+                    headers={
+                        "Authorization": f"Bearer {access_token}",
+                        "Content-Type": "application/json",
+                        "Prefer": "return=representation",
+                    },
+                    json={},
+                ) as capture_resp:
+                    try:
+                        capture_data = await capture_resp.json(content_type=None)
+                    except Exception:
+                        capture_raw = await capture_resp.text()
+                        capture_data = {"raw": capture_raw}
+                    if capture_resp.status >= 300:
+                        logger.error(f"PayPal capture failed: {capture_data}")
+                        pp_msg = ""
+                        if isinstance(capture_data, dict):
+                            details = capture_data.get("details") or []
+                            if isinstance(details, list) and details:
+                                pp_msg = str(details[0].get("description") or "").strip()
+                        return web.json_response(
+                            {"ok": False, "message": pp_msg or "PayPal capture failed"},
+                            status=402 if capture_resp.status == 422 else 502,
+                        )
+
+            if not isinstance(capture_data, dict):
+                return web.json_response({"ok": False, "message": "invalid PayPal capture response"}, status=502)
+
+            pp_status = str(capture_data.get("status") or "").strip().upper()
+            if pp_status != "COMPLETED":
+                return web.json_response({"ok": False, "message": f"PayPal payment is {pp_status or 'pending'}"}, status=402)
+
+            order_data = pending_entry.get("order", {})
+            user_data = pending_entry.get("user", {})
+            purchase = await self._process_purchase(
+                order_data if isinstance(order_data, dict) else {},
+                user_data if isinstance(user_data, dict) else {},
+                payment_method,
+            )
+            if isinstance(purchase, web.Response):
+                return purchase
+
+            order_record, public_products = purchase
+            pending_entry["completed"] = True
+            pending_entry["completedAt"] = datetime.now(timezone.utc).isoformat()
+            pending_entry["paypalOrderId"] = paypal_order_id
+            pending_entry["paypalStatus"] = pp_status
+            pending_entry["paypalCapture"] = capture_data
+            pending[token] = pending_entry
+            await self._save_pending_payments(pending)
+
+            await self._send_order_log(order_record, user_data if isinstance(user_data, dict) else {}, payment_method)
+            return web.json_response({"ok": True, "order": order_record, "products": public_products})
 
         if payment_method == "crypto":
             if not self.oxapay_merchant_api_key:

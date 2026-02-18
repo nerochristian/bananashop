@@ -238,7 +238,7 @@ export default function App() {
         return;
       }
 
-      if (paymentMethod !== 'card' && paymentMethod !== 'crypto') {
+      if (paymentMethod !== 'card' && paymentMethod !== 'crypto' && paymentMethod !== 'paypal') {
         clearQuery();
         return;
       }
@@ -273,6 +273,13 @@ export default function App() {
         if (paymentMethod === 'card') {
           const confirmation = await ShopApiService.confirmPayment(token, confirmationToken, paymentMethod);
           await finalizeConfirmedOrder(confirmation);
+        } else if (paymentMethod === 'paypal') {
+          const paypalOrderId = sessionStorage.getItem('pending_paypal_order_id') || '';
+          const confirmation = await ShopApiService.confirmPayment(token, '', paymentMethod, paypalOrderId);
+          await finalizeConfirmedOrder(confirmation);
+          try { sessionStorage.removeItem('pending_paypal_order_id'); } catch { }
+          try { sessionStorage.removeItem('pending_payment_token'); } catch { }
+          try { sessionStorage.removeItem('pending_payment_method'); } catch { }
         } else {
           const maxAttempts = 24;
           const retryDelayMs = 5000;
