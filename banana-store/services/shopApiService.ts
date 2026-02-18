@@ -49,6 +49,19 @@ const buildHeaders = (withJsonContentType: boolean = true): HeadersInit => {
   return headers;
 };
 
+const getTurnstileToken = (): string => {
+  try { return sessionStorage.getItem('cf-turnstile-token') || ''; } catch { return ''; }
+};
+
+const buildSecureHeaders = (withJsonContentType: boolean = true): HeadersInit => {
+  const headers = buildHeaders(withJsonContentType);
+  const turnstile = getTurnstileToken();
+  if (turnstile) {
+    (headers as Record<string, string>)['cf-turnstile-response'] = turnstile;
+  }
+  return headers;
+};
+
 const withTimeout = async (url: string, init: RequestInit): Promise<Response> => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), STORE_API_TIMEOUT_MS);
@@ -204,18 +217,18 @@ export interface AdminSummary {
 
 export type AuthLoginResult =
   | {
-      requires2fa: true;
-      otpToken: string;
-      message: string;
-      expiresInSeconds: number;
-    }
+    requires2fa: true;
+    otpToken: string;
+    message: string;
+    expiresInSeconds: number;
+  }
   | {
-      requires2fa: false;
-      user: User;
-      discordLinkToken?: string;
-      requiresDiscord?: boolean;
-      message?: string;
-    };
+    requires2fa: false;
+    user: User;
+    discordLinkToken?: string;
+    requiresDiscord?: boolean;
+    message?: string;
+  };
 
 export interface AuthVerifyOtpResult {
   user: User;
@@ -426,7 +439,7 @@ export const ShopApiService = {
   async authLogin(email: string, password: string): Promise<AuthLoginResult> {
     const response = await withTimeout(resolvePath('/auth/login'), {
       method: 'POST',
-      headers: buildHeaders(),
+      headers: buildSecureHeaders(),
       body: JSON.stringify({ email, password }),
     });
     const payload = await response.json().catch(() => ({})) as {
@@ -662,7 +675,7 @@ export const ShopApiService = {
   async buy(order: Order, paymentMethod: string, paymentVerified: boolean = false): Promise<{ ok: boolean; products?: Product[]; orderId?: string; order?: Order }> {
     const response = await withTimeout(resolvePath('/buy'), {
       method: 'POST',
-      headers: buildHeaders(),
+      headers: buildSecureHeaders(),
       body: JSON.stringify({ order, paymentMethod, paymentVerified }),
     });
     if (!response.ok) {

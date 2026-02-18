@@ -502,7 +502,7 @@ export default function App() {
   // Admin View
   if (view === 'admin' && user?.role === 'admin') {
     return (
-      <AdminPanel 
+      <AdminPanel
         products={products}
         setProducts={(newProducts) => {
           if (typeof newProducts === 'function') {
@@ -520,9 +520,9 @@ export default function App() {
 
   return (
     <div className="min-h-screen relative z-10 transition-opacity duration-500">
-      <Navbar 
-        cartCount={cartCount} 
-        onCartClick={() => setIsCartOpen(true)} 
+      <Navbar
+        cartCount={cartCount}
+        onCartClick={() => setIsCartOpen(true)}
         onLogoClick={() => {
           pushRoute('/', products, user);
           window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -535,7 +535,7 @@ export default function App() {
           }
         }}
       />
-      
+
       <main className="transition-all duration-500 ease-in-out">
         {view === 'store' && (
           <div className="animate-reveal">
@@ -552,11 +552,11 @@ export default function App() {
         )}
         {view === 'product-detail' && selectedProduct && (
           <div className="animate-reveal">
-            <ProductDetail 
-              product={selectedProduct} 
+            <ProductDetail
+              product={selectedProduct}
               selectedTier={(selectedProduct.tiers || []).find((tier) => tier.id === selectedTierId) || null}
-              onBack={() => pushRoute('/', products, user)} 
-              onAddToCart={addToCart} 
+              onBack={() => pushRoute('/', products, user)}
+              onAddToCart={addToCart}
               onBuyNow={handleBuyNow}
             />
           </div>
@@ -587,10 +587,10 @@ export default function App() {
         onOpenPrivacy={() => pushRoute('/privacy', products, user)}
         onOpenTerms={() => pushRoute('/terms', products, user)}
       />
-      
-      <Cart 
-        isOpen={isCartOpen} 
-        onClose={() => setIsCartOpen(false)} 
+
+      <Cart
+        isOpen={isCartOpen}
+        onClose={() => setIsCartOpen(false)}
         items={cart}
         onUpdateQuantity={updateQuantity}
         onRemove={removeFromCart}
@@ -606,11 +606,12 @@ export default function App() {
       />
 
       {isCheckoutOpen && (
-        <Checkout 
+        <Checkout
           isOpen={isCheckoutOpen}
           onClose={() => setIsCheckoutOpen(false)}
           items={cart}
           currentUser={user}
+          settings={adminSettings}
           onSuccess={handleCheckoutSuccess}
         />
       )}
@@ -621,7 +622,7 @@ export default function App() {
         onClose={() => setTierPanelProduct(null)}
         onSelectTier={handleSelectTier}
       />
-      
+
       <ChatBot products={products} />
     </div>
   );

@@ -15,6 +15,7 @@ from email.message import EmailMessage
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from typing import Any, Optional
+from collections import defaultdict
 from urllib.parse import urlencode, urlparse, urlunparse, parse_qsl
 
 import asyncpg
@@ -182,9 +183,30 @@ class WebsiteBridgeServer:
         self._ensure_json_file(self.pending_payments_file, {})
         self._ensure_json_file(self.media_library_file, [])
 
+        # --- Rate Limiting ---
+        self._rate_limit_auth = max(1, self._to_int(os.getenv("RATE_LIMIT_AUTH_PER_MIN"), default=5) or 5)
+        self._rate_limit_payment = max(1, self._to_int(os.getenv("RATE_LIMIT_PAYMENT_PER_MIN"), default=10) or 10)
+        self._rate_limit_general = max(1, self._to_int(os.getenv("RATE_LIMIT_GENERAL_PER_MIN"), default=60) or 60)
+        self._rate_buckets: dict[str, list[float]] = defaultdict(list)
+        self._rate_purge_counter = 0
+
+        # --- Response Cache ---
+        self._cache: dict[str, tuple[Any, float]] = {}
+        self._cache_ttl = {
+            "products": 15.0,
+            "health": 30.0,
+            "payment_methods": 60.0,
+        }
+
+        # --- Cloudflare Turnstile ---
+        self.cf_turnstile_site_key = (os.getenv("CF_TURNSTILE_SITE_KEY") or "").strip()
+        self.cf_turnstile_secret_key = (os.getenv("CF_TURNSTILE_SECRET_KEY") or "").strip()
+
         self.app = web.Application(
             middlewares=[
                 self._error_middleware,
+                self._security_headers_middleware,
+                self._rate_limit_middleware,
                 self._cors_middleware,
                 self._auth_middleware,
             ]
@@ -241,6 +263,111 @@ class WebsiteBridgeServer:
                 status=500,
             )
 
+    @web.middleware
+    async def _security_headers_middleware(self, request: web.Request, handler):
+        response = await handler(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://cdn.tailwindcss.com https://esm.sh; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+            "font-src 'self' https://fonts.gstatic.com; "
+            "img-src 'self' data: blob: https:; "
+            "connect-src 'self' https:; "
+            "frame-src https://challenges.cloudflare.com; "
+            "object-src 'none'; "
+            "base-uri 'self'"
+        )
+        return response
+
+    def _get_client_ip(self, request: web.Request) -> str:
+        forwarded = request.headers.get("X-Forwarded-For", "")
+        if forwarded:
+            return forwarded.split(",")[0].strip()
+        cf_ip = request.headers.get("CF-Connecting-IP", "")
+        if cf_ip:
+            return cf_ip.strip()
+        peername = request.transport.get_extra_info("peername") if request.transport else None
+        if peername:
+            return str(peername[0])
+        return "unknown"
+
+    def _check_rate_limit(self, ip: str, limit: int) -> tuple[bool, int]:
+        now = datetime.now(timezone.utc).timestamp()
+        window_start = now - 60.0
+        bucket_key = f"{ip}:{limit}"
+        timestamps = self._rate_buckets[bucket_key]
+        self._rate_buckets[bucket_key] = [t for t in timestamps if t > window_start]
+        current = len(self._rate_buckets[bucket_key])
+        if current >= limit:
+            oldest = min(self._rate_buckets[bucket_key]) if self._rate_buckets[bucket_key] else now
+            retry_after = max(1, int(oldest + 60.0 - now))
+            return False, retry_after
+        self._rate_buckets[bucket_key].append(now)
+        self._rate_purge_counter += 1
+        if self._rate_purge_counter >= 100:
+            self._rate_purge_counter = 0
+            self._purge_stale_rate_buckets()
+        return True, 0
+
+    def _purge_stale_rate_buckets(self) -> None:
+        now = datetime.now(timezone.utc).timestamp()
+        window_start = now - 120.0
+        stale_keys = [k for k, v in self._rate_buckets.items() if not v or max(v) < window_start]
+        for k in stale_keys:
+            del self._rate_buckets[k]
+
+    @web.middleware
+    async def _rate_limit_middleware(self, request: web.Request, handler):
+        if request.method == "OPTIONS":
+            return await handler(request)
+        path = request.path
+        ip = self._get_client_ip(request)
+        auth_paths = {"/shop/auth/login", "/shop/auth/register", "/shop/auth/verify-otp"}
+        payment_paths = {"/shop/buy", "/shop/payments/create", "/shop/payments/confirm"}
+        if path in auth_paths:
+            allowed, retry_after = self._check_rate_limit(ip, self._rate_limit_auth)
+        elif path in payment_paths:
+            allowed, retry_after = self._check_rate_limit(ip, self._rate_limit_payment)
+        else:
+            allowed, retry_after = self._check_rate_limit(ip, self._rate_limit_general)
+        if not allowed:
+            logger.warning(f"Rate limit exceeded for {ip} on {path}")
+            return web.json_response(
+                {"ok": False, "message": "too many requests, please try again later"},
+                status=429,
+                headers={"Retry-After": str(retry_after)},
+            )
+        return await handler(request)
+
+    async def _verify_turnstile(self, request: web.Request) -> bool:
+        if not self.cf_turnstile_secret_key:
+            return True
+        token = request.headers.get("cf-turnstile-response", "").strip()
+        if not token:
+            return False
+        ip = self._get_client_ip(request)
+        try:
+            async with ClientSession() as session:
+                async with session.post(
+                    "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+                    data={
+                        "secret": self.cf_turnstile_secret_key,
+                        "response": token,
+                        "remoteip": ip,
+                    },
+                    timeout=ClientTimeout(total=5),
+                ) as resp:
+                    result = await resp.json(content_type=None)
+                    return bool(result.get("success"))
+        except Exception as exc:
+            logger.warning(f"Turnstile verification failed for {ip}: {exc}")
+            return True
     @web.middleware
     async def _cors_middleware(self, request: web.Request, handler):
         response = await handler(request)
@@ -515,14 +642,34 @@ class WebsiteBridgeServer:
             }
         )
 
+    def _get_cache(self, key: str) -> Any:
+        entry = self._cache.get(key)
+        if entry is None:
+            return None
+        value, expiry = entry
+        if datetime.now(timezone.utc).timestamp() > expiry:
+            self._cache.pop(key, None)
+            return None
+        return value
+
+    def _set_cache(self, key: str, value: Any) -> None:
+        ttl = self._cache_ttl.get(key, 30.0)
+        self._cache[key] = (value, datetime.now(timezone.utc).timestamp() + ttl)
+
+    def _invalidate_cache(self, *keys: str) -> None:
+        for key in keys:
+            self._cache.pop(key, None)
+
     async def shop_health(self, request: web.Request):
+        cached = self._get_cache("health")
+        if cached is not None:
+            return web.json_response(cached)
         products = await self._load_products()
         orders = await self._load_orders()
         pending = await self._load_pending_payments()
         settings = await self._load_state("settings")
         branding = self._extract_branding_from_settings(settings if isinstance(settings, dict) else {})
-        return web.json_response(
-            {
+        result = {
                 "ok": True,
                 "products": len(products),
                 "orders": len(orders),
@@ -532,12 +679,18 @@ class WebsiteBridgeServer:
                 "storageBackend": "supabase" if self.use_supabase_storage else "json",
                 "data_dir": str(self.data_dir),
                 "branding": branding,
-            }
-        )
+        }
+        self._set_cache("health", result)
+        return web.json_response(result)
 
     async def shop_products(self, request: web.Request):
+        cached = self._get_cache("products")
+        if cached is not None:
+            return web.json_response(cached)
         products = [self._public_product(product) for product in await self._load_products()]
-        return web.json_response({"ok": True, "products": products})
+        result = {"ok": True, "products": products}
+        self._set_cache("products", result)
+        return web.json_response(result)
 
     async def shop_get_product(self, request: web.Request):
         product_id = str(request.match_info.get("product_id", "")).strip()
@@ -713,6 +866,8 @@ class WebsiteBridgeServer:
         return web.json_response({"ok": True, "state": state_value})
 
     async def shop_auth_login(self, request: web.Request):
+        if not await self._verify_turnstile(request):
+            return web.json_response({"ok": False, "message": "bot verification failed"}, status=403)
         payload = await self._safe_json(request)
         if payload is None:
             return web.json_response({"ok": False, "message": "invalid json body"}, status=400)
@@ -1181,6 +1336,9 @@ class WebsiteBridgeServer:
         return web.json_response({"ok": True, "user": public_user})
 
     async def shop_payment_methods(self, request: web.Request):
+        cached = self._get_cache("payment_methods")
+        if cached is not None:
+            return web.json_response(cached)
         crypto_automated = bool(self.oxapay_merchant_api_key)
         crypto_enabled = crypto_automated or bool(self.crypto_checkout_url)
         methods = {
@@ -1188,7 +1346,9 @@ class WebsiteBridgeServer:
             "paypal": {"enabled": bool(self.paypal_checkout_url), "automated": False},
             "crypto": {"enabled": crypto_enabled, "automated": crypto_automated},
         }
-        return web.json_response({"ok": True, "methods": methods})
+        result = {"ok": True, "methods": methods}
+        self._set_cache("payment_methods", result)
+        return web.json_response(result)
 
     async def shop_analytics(self, request: web.Request):
         summary_response = await self.shop_admin_summary(request)
@@ -1682,6 +1842,7 @@ class WebsiteBridgeServer:
                 "products": [self._public_product(product) for product in products],
             }
         )
+        self._invalidate_cache("products", "health")
 
     async def shop_delete_product(self, request: web.Request):
         product_id = str(request.match_info.get("product_id", "")).strip()
@@ -1694,6 +1855,7 @@ class WebsiteBridgeServer:
             return web.json_response({"ok": False, "message": "product not found"}, status=404)
 
         await self._save_products(filtered)
+        self._invalidate_cache("products", "health")
         return web.json_response({"ok": True, "products": [self._public_product(product) for product in filtered]})
 
     async def shop_get_inventory(self, request: web.Request):
@@ -1944,6 +2106,8 @@ class WebsiteBridgeServer:
         return normalized_items, round(computed_total, 2), None
 
     async def shop_buy(self, request: web.Request):
+        if not await self._verify_turnstile(request):
+            return web.json_response({"ok": False, "message": "bot verification failed"}, status=403)
         auth_user = self._shop_user_from_request(request)
         if not isinstance(auth_user, dict):
             return web.json_response({"ok": False, "message": "unauthorized"}, status=401)
@@ -1982,6 +2146,7 @@ class WebsiteBridgeServer:
             return purchase
 
         order_record, public_products = purchase
+        self._invalidate_cache("products", "health")
         await self._send_order_log(order_record, session_user, payment_method)
         return web.json_response({"ok": True, "orderId": order_record["id"], "order": order_record, "products": public_products})
 

@@ -378,11 +378,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
     orders
       .filter((o) => o.status === 'completed')
       .forEach((o) => o.items.forEach((i) => {
-      const prev = map.get(i.id) || { name: i.name, units: 0, revenue: 0 };
-      prev.units += i.quantity;
-      prev.revenue += i.quantity * i.price;
-      map.set(i.id, prev);
-    }));
+        const prev = map.get(i.id) || { name: i.name, units: 0, revenue: 0 };
+        prev.units += i.quantity;
+        prev.revenue += i.quantity * i.price;
+        map.set(i.id, prev);
+      }));
     return [...map.values()].sort((a, b) => b.units - a.units).slice(0, 5);
   }, [orders]);
   const topProducts = summaryTopProducts.length > 0 ? summaryTopProducts : computedTopProducts;
@@ -981,11 +981,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
                   <button
                     key={item.id}
                     onClick={() => setTab(item.id)}
-                    className={`w-full text-left px-3.5 py-3 rounded-xl flex items-center gap-3 border transition-all ${
-                      tab === item.id
+                    className={`w-full text-left px-3.5 py-3 rounded-xl flex items-center gap-3 border transition-all ${tab === item.id
                         ? 'bg-[#facc15]/18 border-[#facc15]/45 shadow-[0_0_22px_rgba(250,204,21,0.14)]'
                         : 'border-transparent hover:border-white/10 hover:bg-white/5'
-                    }`}
+                      }`}
                   >
                     {React.createElement(item.icon, { className: 'w-4 h-4 mt-0.5 shrink-0' })}
                     <div className="min-w-0 flex-1">
@@ -1012,441 +1011,440 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
 
       <main className="relative z-10 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
         <div className="mx-auto w-full max-w-[1280px]">
-        <header className="mb-5 rounded-2xl border border-[#facc15]/20 bg-[#0b0b0b]/85 px-5 py-5 sm:px-6 shadow-[0_14px_40px_rgba(0,0,0,0.45)]">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <div className="rounded-full border border-[#facc15]/30 bg-[#facc15]/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-[#facc15]">
-              Roblox Keys Admin
-            </div>
-            <div className="text-xs text-yellow-100/60">Live session</div>
-          </div>
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <h1 className="text-3xl font-black">{currentNavItem.label}</h1>
-              <p className="text-yellow-200/60 text-sm">{currentNavItem.description}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="hidden rounded-xl border border-[#facc15]/20 bg-black/35 px-3 py-2 text-xs text-yellow-100/70 md:block">
-                Pending: <span className="font-bold text-white">{pendingOrders}</span>
+          <header className="mb-5 rounded-2xl border border-[#facc15]/20 bg-[#0b0b0b]/85 px-5 py-5 sm:px-6 shadow-[0_14px_40px_rgba(0,0,0,0.45)]">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="rounded-full border border-[#facc15]/30 bg-[#facc15]/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-[#facc15]">
+                Roblox Keys Admin
               </div>
-              <div className="hidden rounded-xl border border-[#facc15]/20 bg-black/35 px-3 py-2 text-xs text-yellow-100/70 md:block">
-                Low stock: <span className="font-bold text-white">{lowStockCount}</span>
-              </div>
-              <div className="hidden rounded-xl border border-[#facc15]/20 bg-black/35 px-3 py-2 text-xs text-yellow-100/70 md:block">
-                Tickets: <span className="font-bold text-white">{openTickets}</span>
-              </div>
+              <div className="text-xs text-yellow-100/60">Live session</div>
             </div>
-          </div>
-          <div className="mt-4 flex items-center gap-3">
-            <select
-              value={tab}
-              onChange={(e) => setTab(e.target.value as Tab)}
-              className={`${fieldCompactClass} min-w-[180px]`}
-              title="Quick Navigation"
-            >
-              {navItems.map((item) => (
-                <option key={item.id} value={item.id}>{item.label}</option>
-              ))}
-            </select>
-            <div className="bg-[#0b0b0b] border border-[#facc15]/20 rounded-xl px-4 py-2 shadow-[0_0_20px_rgba(250,204,21,0.08)]">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 bg-[#facc15] rounded-lg flex items-center justify-center font-black">{BRAND_INITIALS}</div>
-                <div><div className="text-sm font-bold">Admin Session</div><div className="text-[11px] text-yellow-200/60">Live</div></div>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <h1 className="text-3xl font-black">{currentNavItem.label}</h1>
+                <p className="text-yellow-200/60 text-sm">{currentNavItem.description}</p>
               </div>
-            </div>
-          </div>
-        </header>
-
-        <div className="mb-6 flex gap-2 overflow-x-auto pb-1 lg:hidden">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setTab(item.id)}
-              className={`shrink-0 rounded-xl border px-3 py-2 text-xs font-semibold transition-all ${
-                tab === item.id
-                  ? 'border-[#facc15]/45 bg-[#facc15]/15 text-[#facc15]'
-                  : 'border-white/15 bg-white/5 text-white/80'
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-
-        {message && (
-          <div className="mb-5 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm font-medium text-emerald-300 shadow-[0_0_18px_rgba(16,185,129,0.18)]">
-            {message}
-          </div>
-        )}
-
-        {tab === 'dashboard' && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className={cardClass}>
-                <div className="mb-6 flex items-start justify-between">
-                  <div className="text-xs text-yellow-200/60 uppercase tracking-[0.18em]">Revenue</div>
-                  <BarChart3 className="h-5 w-5 text-[#facc15]" />
+              <div className="flex items-center gap-2">
+                <div className="hidden rounded-xl border border-[#facc15]/20 bg-black/35 px-3 py-2 text-xs text-yellow-100/70 md:block">
+                  Pending: <span className="font-bold text-white">{pendingOrders}</span>
                 </div>
-                <div className="text-3xl font-black">${revenue.toFixed(2)}</div>
-                <div className="mt-1 text-xs text-yellow-200/60">Completed order revenue</div>
-              </div>
-              <div className={cardClass}>
-                <div className="mb-6 flex items-start justify-between">
-                  <div className="text-xs text-yellow-200/60 uppercase tracking-[0.18em]">Orders</div>
-                  <ShoppingBag className="h-5 w-5 text-[#facc15]" />
+                <div className="hidden rounded-xl border border-[#facc15]/20 bg-black/35 px-3 py-2 text-xs text-yellow-100/70 md:block">
+                  Low stock: <span className="font-bold text-white">{lowStockCount}</span>
                 </div>
-                <div className="text-3xl font-black">{totalOrders}</div>
-                <div className="mt-1 text-xs text-yellow-200/60">{pendingOrders} pending</div>
-              </div>
-              <div className={cardClass}>
-                <div className="mb-6 flex items-start justify-between">
-                  <div className="text-xs text-yellow-200/60 uppercase tracking-[0.18em]">Customers</div>
-                  <Users className="h-5 w-5 text-[#facc15]" />
+                <div className="hidden rounded-xl border border-[#facc15]/20 bg-black/35 px-3 py-2 text-xs text-yellow-100/70 md:block">
+                  Tickets: <span className="font-bold text-white">{openTickets}</span>
                 </div>
-                <div className="text-3xl font-black">{customersCount}</div>
-                <div className="mt-1 text-xs text-yellow-200/60">Registered users</div>
-              </div>
-              <div className={cardClass}>
-                <div className="mb-6 flex items-start justify-between">
-                  <div className="text-xs text-yellow-200/60 uppercase tracking-[0.18em]">Units Sold</div>
-                  <Package className="h-5 w-5 text-[#facc15]" />
-                </div>
-                <div className="text-3xl font-black">{unitsSold}</div>
-                <div className="mt-1 text-xs text-yellow-200/60">Total delivered quantity</div>
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className={cardClass}>
-                <div className="text-xs text-yellow-200/60 uppercase tracking-[0.18em]">Products</div>
-                <div className="mt-1 text-2xl font-black">{products.length}</div>
-                <div className="mt-2 text-xs text-yellow-200/70">{lowStockCount} near depletion</div>
-              </div>
-              <div className={cardClass}>
-                <div className="text-xs text-yellow-200/60 uppercase tracking-[0.18em]">Coupons</div>
-                <div className="mt-1 text-2xl font-black">{coupons.length}</div>
-                <div className="mt-2 text-xs text-yellow-200/70">Active discounts and campaigns</div>
-              </div>
-              <div className={cardClass}>
-                <div className="text-xs text-yellow-200/60 uppercase tracking-[0.18em]">Support Load</div>
-                <div className="mt-1 text-2xl font-black">{openTickets}</div>
-                <div className="mt-2 text-xs text-yellow-200/70">Open tickets awaiting action</div>
-              </div>
-            </div>
-            <div className={cardClass}>
-              <h2 className="font-bold text-lg mb-3">Top Products</h2>
-              {topProducts.length === 0 && <div className="text-yellow-200/60">No sales yet.</div>}
-              <div className="space-y-2">
-                {topProducts.map((p, index) => (
-                  <div key={p.name} className="bg-white/5 rounded-lg p-3 flex items-center justify-between border border-white/5">
-                    <div className="flex items-center gap-3">
-                      <div className="h-7 w-7 rounded-full bg-[#facc15]/20 border border-[#facc15]/30 flex items-center justify-center text-xs font-black text-[#facc15]">
-                        {index + 1}
-                      </div>
-                      <div>
-                        <div className="font-semibold">{p.name}</div>
-                        <div className="text-xs text-yellow-200/60">{p.units} units</div>
-                      </div>
-                    </div>
-                    <div className="font-bold">${p.revenue.toFixed(2)}</div>
-                  </div>
+            <div className="mt-4 flex items-center gap-3">
+              <select
+                value={tab}
+                onChange={(e) => setTab(e.target.value as Tab)}
+                className={`${fieldCompactClass} min-w-[180px]`}
+                title="Quick Navigation"
+              >
+                {navItems.map((item) => (
+                  <option key={item.id} value={item.id}>{item.label}</option>
                 ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {tab === 'products' && (
-          <div className={cardClass}>
-            <div className={`${mutedPanelClass} mb-4 flex flex-wrap items-center justify-between gap-3 px-4 py-3`}>
-              <div className="text-xs text-yellow-100/70">
-                Inventory status: <span className="font-bold text-white">{products.length}</span> products,{' '}
-                <span className="font-bold text-white">{lowStockCount}</span> low stock.
-              </div>
-              <div className="text-xs text-yellow-100/70">Use <span className="text-[#facc15] font-semibold">Add Keys</span> to add real deliverable stock.</div>
-            </div>
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-              <div className="relative flex-1 min-w-[240px]">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-yellow-200/60" />
-                <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search products..." className={`${fieldClass} w-full pl-9`} />
-              </div>
-              <button onClick={openCreate} className={`${primaryButtonClass} inline-flex items-center gap-2`}><Plus className="w-4 h-4" /> Create</button>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="text-yellow-100/80 border-b border-[#facc15]/20">
-                  <tr className="text-[11px] uppercase tracking-wider">
-                    <th className="text-left py-3">ID</th>
-                    <th className="text-left py-3">Name</th>
-                    <th className="text-left py-3">Category</th>
-                    <th className="text-left py-3">Group</th>
-                    <th className="text-right py-3">Price</th>
-                    <th className="text-right py-3">Stock</th>
-                    <th className="text-right py-3">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredProducts.map((p) => (
-                    <tr key={p.id} className="border-b border-[#facc15]/10 hover:bg-white/[0.03]">
-                      <td className="py-2 text-xs font-mono">{p.id}</td>
-                      <td className="py-2">
-                        <div className="font-semibold">{p.name}</div>
-                        <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                          {hasTiers(p) && <span className="rounded-full border border-[#facc15]/35 bg-[#facc15]/10 px-2 py-0.5 text-[10px] font-semibold text-[#facc15]">{p.tiers?.length || 0} tiers</span>}
-                          {p.visibility !== 'public' && (
-                            <span className="rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[10px] uppercase">{p.visibility}</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-2">{p.category || '-'}</td>
-                      <td className="py-2">{p.group || '-'}</td>
-                      <td className="py-2 text-right">{priceLabel(p)}</td>
-                      <td className="py-2 text-right">
-                        <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${totalStock(p) <= 5 ? 'bg-red-500/20 text-red-300' : 'bg-emerald-500/20 text-emerald-300'}`}>
-                          {totalStock(p)}
-                        </span>
-                      </td>
-                      <td className="py-2 text-right">
-                        <div className="inline-flex flex-wrap justify-end gap-2">
-                          {!hasTiers(p) && <button onClick={() => adjustStock(p.id, -5)} className={subtleButtonClass}>-5</button>}
-                          {!hasTiers(p) && <button onClick={() => promptSetStock(p)} className={subtleButtonClass}>Set</button>}
-                          <button onClick={() => addStockKeys(p)} className="rounded-xl bg-emerald-500/15 border border-emerald-400/30 px-3 py-2 text-sm text-emerald-300 hover:bg-emerald-500/25">Add Keys</button>
-                          <button onClick={() => openEdit(p)} className={subtleButtonClass}>Edit</button>
-                          <button onClick={() => cloneProduct(p)} className={subtleButtonClass}>Clone</button>
-                          <button onClick={() => deleteProduct(p.id)} className="rounded-xl bg-red-500/15 border border-red-400/35 px-3 py-2 text-sm text-red-300 hover:bg-red-500/25">Delete</button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {filteredProducts.length === 0 && (
-              <div className="mt-4 rounded-xl border border-dashed border-[#facc15]/25 bg-[#080808] px-4 py-8 text-center text-sm text-yellow-200/70">
-                No products found. Create one to start selling.
-              </div>
-            )}
-          </div>
-        )}
-
-        {tab === 'categories' && (
-          <div className="space-y-4">
-            <div className={cardClass}>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <input value={categoryDraft.name} onChange={(e) => setCategoryDraft({ ...categoryDraft, name: e.target.value })} placeholder="Category name" className={fieldClass} />
-                <input value={categoryDraft.slug} onChange={(e) => setCategoryDraft({ ...categoryDraft, slug: e.target.value })} placeholder="Slug (optional)" className={fieldClass} />
-                <select value={categoryDraft.visibility} onChange={(e) => setCategoryDraft({ ...categoryDraft, visibility: e.target.value as Category['visibility'] })} className={fieldClass}><option value="public">public</option><option value="hidden">hidden</option></select>
-                <button onClick={addCategory} className={primaryButtonClass}>Add Category</button>
-              </div>
-            </div>
-            <div className={cardClass}><div className="space-y-2">{categories.map((c) => <div key={c.id} className="bg-white/5 rounded-lg p-3 flex items-center justify-between"><div><div className="font-semibold">{c.name}</div><div className="text-xs text-yellow-200/60">{c.slug} | {c.visibility}</div></div><button onClick={() => { void deleteCategoryById(c.id); }} className="px-2 py-1 rounded bg-red-500/20"><Trash2 className="w-4 h-4" /></button></div>)}{categories.length === 0 && <div className="text-yellow-200/60">No categories yet.</div>}</div></div>
-          </div>
-        )}
-
-        {tab === 'groups' && (
-          <div className="space-y-4">
-            <div className={cardClass}>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <input value={groupDraft.name} onChange={(e) => setGroupDraft({ ...groupDraft, name: e.target.value })} placeholder="Group name" className={fieldClass} />
-                <select value={groupDraft.visibility} onChange={(e) => setGroupDraft({ ...groupDraft, visibility: e.target.value as ProductGroup['visibility'] })} className={fieldClass}><option value="public">public</option><option value="hidden">hidden</option></select>
-                <button onClick={addGroup} className={primaryButtonClass}>Add Group</button>
-              </div>
-            </div>
-            <div className={cardClass}><div className="space-y-2">{groups.map((g) => <div key={g.id} className="bg-white/5 rounded-lg p-3 flex items-center justify-between"><div><div className="font-semibold">{g.name}</div><div className="text-xs text-yellow-200/60">{g.visibility}</div></div><button onClick={() => { void deleteGroupById(g.id); }} className="px-2 py-1 rounded bg-red-500/20"><Trash2 className="w-4 h-4" /></button></div>)}{groups.length === 0 && <div className="text-yellow-200/60">No groups yet.</div>}</div></div>
-          </div>
-        )}
-
-        {tab === 'orders' && (
-          <div className={cardClass + ' overflow-x-auto'}>
-            <table className="w-full text-sm">
-              <thead className="text-yellow-200/70 border-b border-[#facc15]/20"><tr><th className="text-left py-2">Order</th><th className="text-left py-2">Customer</th><th className="text-right py-2">Total</th><th className="text-left py-2">Date</th><th className="text-right py-2">Status</th></tr></thead>
-              <tbody>{orders.map((o) => {
-                const userPayload = (o as unknown as { user?: { email?: string } }).user;
-                const customerLabel = usersById.get(o.userId)?.email || userPayload?.email || o.userId;
-                return <tr key={o.id} className="border-b border-[#facc15]/10"><td className="py-2 font-mono text-xs">{o.id}</td><td className="py-2">{customerLabel}</td><td className="py-2 text-right">${o.total.toFixed(2)}</td><td className="py-2 text-yellow-200/60">{new Date(o.createdAt).toLocaleString()}</td><td className="py-2 text-right"><select value={o.status} onChange={(e) => { const nextStatus = e.target.value as Order['status']; void updateOrderStatus(o.id, nextStatus); }} className={fieldCompactClass}><option value="pending">pending</option><option value="completed">completed</option><option value="refunded">refunded</option><option value="cancelled">cancelled</option></select></td></tr>;
-              })}</tbody>
-            </table>
-          </div>
-        )}
-
-        {tab === 'invoices' && (
-          <div className={cardClass + ' overflow-x-auto'}>
-            <table className="w-full text-sm">
-              <thead className="text-yellow-200/70 border-b border-[#facc15]/20"><tr><th className="text-left py-2">Invoice</th><th className="text-left py-2">Order</th><th className="text-left py-2">Email</th><th className="text-right py-2">Total</th><th className="text-left py-2">Date</th><th className="text-right py-2">Status</th></tr></thead>
-              <tbody>{invoices.map((i) => <tr key={i.id} className="border-b border-[#facc15]/10"><td className="py-2 font-mono text-xs">{i.id}</td><td className="py-2 font-mono text-xs">{i.orderId}</td><td className="py-2">{i.email}</td><td className="py-2 text-right">${i.total.toFixed(2)}</td><td className="py-2 text-yellow-200/60">{new Date(i.createdAt).toLocaleString()}</td><td className="py-2 text-right"><span className="px-2 py-1 rounded bg-white/10 text-xs uppercase">{i.status}</span></td></tr>)}</tbody>
-            </table>
-          </div>
-        )}
-
-        {tab === 'customers' && (
-          <div className={cardClass + ' overflow-x-auto'}>
-            <table className="w-full text-sm">
-              <thead className="text-yellow-200/70 border-b border-[#facc15]/20"><tr><th className="text-left py-2">Email</th><th className="text-left py-2">Joined</th><th className="text-right py-2">Orders</th><th className="text-right py-2">Spent</th></tr></thead>
-              <tbody>{customers.map((c) => {
-                const remoteStats = summaryCustomerStats[c.id];
-                const localOrders = orders.filter((o) => o.userId === c.id);
-                const localCompleted = localOrders.filter((o) => o.status === 'completed');
-                const ordersCount = remoteStats?.orders ?? localOrders.length;
-                const spent = remoteStats?.spent ?? localCompleted.reduce((s, o) => s + o.total, 0);
-                return <tr key={c.id} className="border-b border-[#facc15]/10"><td className="py-2">{c.email}</td><td className="py-2 text-yellow-200/60">{new Date(c.createdAt).toLocaleDateString()}</td><td className="py-2 text-right">{ordersCount}</td><td className="py-2 text-right">${spent.toFixed(2)}</td></tr>;
-              })}</tbody>
-            </table>
-          </div>
-        )}
-
-        {tab === 'coupons' && (
-          <div className="space-y-4">
-            <div className={cardClass}>
-              <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
-                <input value={couponDraft.code} onChange={(e) => setCouponDraft({ ...couponDraft, code: e.target.value })} placeholder="Code" className={fieldClass} />
-                <select value={couponDraft.type} onChange={(e) => setCouponDraft({ ...couponDraft, type: e.target.value as Coupon['type'] })} className={fieldClass}><option value="percent">percent</option><option value="fixed">fixed</option></select>
-                <input type="number" value={couponDraft.value} onChange={(e) => setCouponDraft({ ...couponDraft, value: Number(e.target.value) })} placeholder="Value" className={fieldClass} />
-                <input type="number" value={couponDraft.maxUses} onChange={(e) => setCouponDraft({ ...couponDraft, maxUses: Number(e.target.value) })} placeholder="Max uses" className={fieldClass} />
-                <input type="datetime-local" value={couponDraft.expiresAt} onChange={(e) => setCouponDraft({ ...couponDraft, expiresAt: e.target.value })} className={fieldClass} />
-                <button onClick={addCoupon} className={primaryButtonClass}>Add Coupon</button>
-              </div>
-            </div>
-            <div className={cardClass + ' overflow-x-auto'}>
-              <table className="w-full text-sm"><thead className="text-yellow-200/70 border-b border-[#facc15]/20"><tr><th className="text-left py-2">Code</th><th className="text-left py-2">Type</th><th className="text-right py-2">Value</th><th className="text-right py-2">Uses</th><th className="text-left py-2">Expires</th><th className="text-right py-2">Actions</th></tr></thead>
-                <tbody>{coupons.map((c) => <tr key={c.id} className="border-b border-[#facc15]/10"><td className="py-2 font-bold">{c.code}</td><td className="py-2">{c.type}</td><td className="py-2 text-right">{c.value}</td><td className="py-2 text-right">{c.uses}/{c.maxUses}</td><td className="py-2 text-yellow-200/60">{c.expiresAt ? new Date(c.expiresAt).toLocaleString() : '-'}</td><td className="py-2 text-right"><div className="inline-flex gap-2"><button onClick={() => { void toggleCoupon(c); }} className="px-2 py-1 rounded bg-white/10">{c.active ? 'Disable' : 'Enable'}</button><button onClick={() => { void deleteCouponById(c.id); }} className="px-2 py-1 rounded bg-red-500/20">Delete</button></div></td></tr>)}</tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {tab === 'tickets' && (
-          <div className="space-y-4">
-            <div className={cardClass}>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <input value={ticketDraft.subject} onChange={(e) => setTicketDraft({ ...ticketDraft, subject: e.target.value })} placeholder="Subject" className={fieldClass} />
-                <input value={ticketDraft.customerEmail} onChange={(e) => setTicketDraft({ ...ticketDraft, customerEmail: e.target.value })} placeholder="Customer email" className={fieldClass} />
-                <select value={ticketDraft.priority} onChange={(e) => setTicketDraft({ ...ticketDraft, priority: e.target.value as SupportTicket['priority'] })} className={fieldClass}><option value="low">low</option><option value="medium">medium</option><option value="high">high</option></select>
-                <button onClick={addTicket} className={primaryButtonClass}>Add Ticket</button>
-              </div>
-            </div>
-            <div className={cardClass + ' overflow-x-auto'}>
-              <table className="w-full text-sm"><thead className="text-yellow-200/70 border-b border-[#facc15]/20"><tr><th className="text-left py-2">Subject</th><th className="text-left py-2">Customer</th><th className="text-left py-2">Priority</th><th className="text-left py-2">Date</th><th className="text-right py-2">Actions</th></tr></thead>
-                <tbody>{tickets.map((t) => <tr key={t.id} className="border-b border-[#facc15]/10"><td className="py-2">{t.subject}</td><td className="py-2">{t.customerEmail}</td><td className="py-2">{t.priority}</td><td className="py-2 text-yellow-200/60">{new Date(t.createdAt).toLocaleString()}</td><td className="py-2 text-right"><div className="inline-flex gap-2"><button onClick={() => { void toggleTicket(t); }} className="px-2 py-1 rounded bg-white/10">{t.status === 'open' ? 'Close' : 'Reopen'}</button><button onClick={() => { void deleteTicketById(t.id); }} className="px-2 py-1 rounded bg-red-500/20">Delete</button></div></td></tr>)}</tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {tab === 'feedbacks' && (
-          <div className="space-y-4">
-            <div className={cardClass}>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <input value={feedbackDraft.customerEmail} onChange={(e) => setFeedbackDraft({ ...feedbackDraft, customerEmail: e.target.value })} placeholder="Customer email" className={fieldClass} />
-                <input type="number" min={1} max={5} value={feedbackDraft.rating} onChange={(e) => setFeedbackDraft({ ...feedbackDraft, rating: Number(e.target.value) })} placeholder="Rating" className={fieldClass} />
-                <input value={feedbackDraft.message} onChange={(e) => setFeedbackDraft({ ...feedbackDraft, message: e.target.value })} placeholder="Message" className={fieldClass} />
-                <button onClick={addFeedback} className={primaryButtonClass}>Add Feedback</button>
-              </div>
-            </div>
-            <div className={cardClass}><div className="space-y-2">{feedbacks.map((f) => <div key={f.id} className="bg-white/5 rounded-lg p-3 flex items-start justify-between"><div><div className="font-semibold">{f.customerEmail} | {f.rating}/5</div><div className="text-sm text-yellow-100/80">{f.message}</div><div className="text-xs text-yellow-200/60">{new Date(f.createdAt).toLocaleString()}</div></div><button onClick={() => { void deleteFeedbackById(f.id); }} className="px-2 py-1 rounded bg-red-500/20">Delete</button></div>)}{feedbacks.length === 0 && <div className="text-yellow-200/60">No feedbacks yet.</div>}</div></div>
-          </div>
-        )}
-
-        {tab === 'domains' && (
-          <div className="space-y-4">
-            <div className={cardClass}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <input value={domainDraft.domain} onChange={(e) => setDomainDraft({ domain: e.target.value })} placeholder="example.com" className={fieldClass} />
-                <button onClick={addDomain} className={primaryButtonClass}>Add Domain</button>
-              </div>
-            </div>
-            <div className={cardClass}><div className="space-y-2">{domains.map((d) => <div key={d.id} className="bg-white/5 rounded-lg p-3 flex items-center justify-between"><div><div className="font-semibold">{d.domain}</div><div className="text-xs text-yellow-200/60">{d.verified ? 'verified' : 'unverified'} | {new Date(d.createdAt).toLocaleDateString()}</div></div><div className="inline-flex gap-2"><button onClick={() => { void toggleDomain(d); }} className="px-2 py-1 rounded bg-white/10">{d.verified ? 'Unverify' : 'Verify'}</button><button onClick={() => { void deleteDomainById(d.id); }} className="px-2 py-1 rounded bg-red-500/20">Delete</button></div></div>)}{domains.length === 0 && <div className="text-yellow-200/60">No domains yet.</div>}</div></div>
-          </div>
-        )}
-
-        {tab === 'payment_methods' && (
-          <div className={cardClass + ' space-y-3'}>
-            <div className="rounded-lg border border-[#facc15]/20 bg-[#0a0a0a] p-3 text-xs text-yellow-200/70">
-              Real checkout status is loaded from API environment variables. Set `STRIPE_SECRET_KEY` for card and `OXAPAY_MERCHANT_API_KEY` for automated crypto.
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="rounded-lg bg-white/5 p-3"><div className="text-xs uppercase text-yellow-200/60">Card (Stripe)</div><div className="font-bold">{gatewayMethods.card.enabled ? 'Configured' : 'Not configured'}</div></div>
-              <div className="rounded-lg bg-white/5 p-3"><div className="text-xs uppercase text-yellow-200/60">PayPal</div><div className="font-bold">{gatewayMethods.paypal.enabled ? 'Configured (manual)' : 'Not configured'}</div></div>
-              <div className="rounded-lg bg-white/5 p-3"><div className="text-xs uppercase text-yellow-200/60">Crypto</div><div className="font-bold">{gatewayMethods.crypto.enabled ? (gatewayMethods.crypto.automated ? 'Configured (OxaPay auto)' : 'Configured (manual)') : 'Not configured'}</div></div>
-            </div>
-            {paymentMethods.map((method) => (
-              <div key={method.id} className="bg-white/5 rounded-lg p-3 flex items-center justify-between gap-3">
-                <div className="flex-1">
-                  <div className="font-semibold">{method.name}</div>
-                  <input
-                    value={method.instructions}
-                    onChange={(e) => setPaymentMethods((prev) => prev.map((item) => item.id === method.id ? { ...item, instructions: e.target.value } : item))}
-                    onBlur={() => {
-                      const latest = paymentMethods.find((item) => item.id === method.id) || method;
-                      void updatePaymentMethod(latest);
-                    }}
-                    className={`${fieldCompactClass} mt-1 w-full`}
-                  />
+              </select>
+              <div className="bg-[#0b0b0b] border border-[#facc15]/20 rounded-xl px-4 py-2 shadow-[0_0_20px_rgba(250,204,21,0.08)]">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 bg-[#facc15] rounded-lg flex items-center justify-center font-black">{BRAND_INITIALS}</div>
+                  <div><div className="text-sm font-bold">Admin Session</div><div className="text-[11px] text-yellow-200/60">Live</div></div>
                 </div>
-                <button onClick={() => { void updatePaymentMethod({ ...method, enabled: !method.enabled }); }} className="px-2 py-1 rounded bg-white/10">{method.enabled ? 'Enabled' : 'Disabled'}</button>
               </div>
+            </div>
+          </header>
+
+          <div className="mb-6 flex gap-2 overflow-x-auto pb-1 lg:hidden">
+            {navItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setTab(item.id)}
+                className={`shrink-0 rounded-xl border px-3 py-2 text-xs font-semibold transition-all ${tab === item.id
+                    ? 'border-[#facc15]/45 bg-[#facc15]/15 text-[#facc15]'
+                    : 'border-white/15 bg-white/5 text-white/80'
+                  }`}
+              >
+                {item.label}
+              </button>
             ))}
           </div>
-        )}
 
-        {tab === 'team' && (
-          <div className="space-y-4">
+          {message && (
+            <div className="mb-5 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm font-medium text-emerald-300 shadow-[0_0_18px_rgba(16,185,129,0.18)]">
+              {message}
+            </div>
+          )}
+
+          {tab === 'dashboard' && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className={cardClass}>
+                  <div className="mb-6 flex items-start justify-between">
+                    <div className="text-xs text-yellow-200/60 uppercase tracking-[0.18em]">Revenue</div>
+                    <BarChart3 className="h-5 w-5 text-[#facc15]" />
+                  </div>
+                  <div className="text-3xl font-black">${revenue.toFixed(2)}</div>
+                  <div className="mt-1 text-xs text-yellow-200/60">Completed order revenue</div>
+                </div>
+                <div className={cardClass}>
+                  <div className="mb-6 flex items-start justify-between">
+                    <div className="text-xs text-yellow-200/60 uppercase tracking-[0.18em]">Orders</div>
+                    <ShoppingBag className="h-5 w-5 text-[#facc15]" />
+                  </div>
+                  <div className="text-3xl font-black">{totalOrders}</div>
+                  <div className="mt-1 text-xs text-yellow-200/60">{pendingOrders} pending</div>
+                </div>
+                <div className={cardClass}>
+                  <div className="mb-6 flex items-start justify-between">
+                    <div className="text-xs text-yellow-200/60 uppercase tracking-[0.18em]">Customers</div>
+                    <Users className="h-5 w-5 text-[#facc15]" />
+                  </div>
+                  <div className="text-3xl font-black">{customersCount}</div>
+                  <div className="mt-1 text-xs text-yellow-200/60">Registered users</div>
+                </div>
+                <div className={cardClass}>
+                  <div className="mb-6 flex items-start justify-between">
+                    <div className="text-xs text-yellow-200/60 uppercase tracking-[0.18em]">Units Sold</div>
+                    <Package className="h-5 w-5 text-[#facc15]" />
+                  </div>
+                  <div className="text-3xl font-black">{unitsSold}</div>
+                  <div className="mt-1 text-xs text-yellow-200/60">Total delivered quantity</div>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className={cardClass}>
+                  <div className="text-xs text-yellow-200/60 uppercase tracking-[0.18em]">Products</div>
+                  <div className="mt-1 text-2xl font-black">{products.length}</div>
+                  <div className="mt-2 text-xs text-yellow-200/70">{lowStockCount} near depletion</div>
+                </div>
+                <div className={cardClass}>
+                  <div className="text-xs text-yellow-200/60 uppercase tracking-[0.18em]">Coupons</div>
+                  <div className="mt-1 text-2xl font-black">{coupons.length}</div>
+                  <div className="mt-2 text-xs text-yellow-200/70">Active discounts and campaigns</div>
+                </div>
+                <div className={cardClass}>
+                  <div className="text-xs text-yellow-200/60 uppercase tracking-[0.18em]">Support Load</div>
+                  <div className="mt-1 text-2xl font-black">{openTickets}</div>
+                  <div className="mt-2 text-xs text-yellow-200/70">Open tickets awaiting action</div>
+                </div>
+              </div>
+              <div className={cardClass}>
+                <h2 className="font-bold text-lg mb-3">Top Products</h2>
+                {topProducts.length === 0 && <div className="text-yellow-200/60">No sales yet.</div>}
+                <div className="space-y-2">
+                  {topProducts.map((p, index) => (
+                    <div key={p.name} className="bg-white/5 rounded-lg p-3 flex items-center justify-between border border-white/5">
+                      <div className="flex items-center gap-3">
+                        <div className="h-7 w-7 rounded-full bg-[#facc15]/20 border border-[#facc15]/30 flex items-center justify-center text-xs font-black text-[#facc15]">
+                          {index + 1}
+                        </div>
+                        <div>
+                          <div className="font-semibold">{p.name}</div>
+                          <div className="text-xs text-yellow-200/60">{p.units} units</div>
+                        </div>
+                      </div>
+                      <div className="font-bold">${p.revenue.toFixed(2)}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {tab === 'products' && (
             <div className={cardClass}>
+              <div className={`${mutedPanelClass} mb-4 flex flex-wrap items-center justify-between gap-3 px-4 py-3`}>
+                <div className="text-xs text-yellow-100/70">
+                  Inventory status: <span className="font-bold text-white">{products.length}</span> products,{' '}
+                  <span className="font-bold text-white">{lowStockCount}</span> low stock.
+                </div>
+                <div className="text-xs text-yellow-100/70">Use <span className="text-[#facc15] font-semibold">Add Keys</span> to add real deliverable stock.</div>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+                <div className="relative flex-1 min-w-[240px]">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-yellow-200/60" />
+                  <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search products..." className={`${fieldClass} w-full pl-9`} />
+                </div>
+                <button onClick={openCreate} className={`${primaryButtonClass} inline-flex items-center gap-2`}><Plus className="w-4 h-4" /> Create</button>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-yellow-100/80 border-b border-[#facc15]/20">
+                    <tr className="text-[11px] uppercase tracking-wider">
+                      <th className="text-left py-3">ID</th>
+                      <th className="text-left py-3">Name</th>
+                      <th className="text-left py-3">Category</th>
+                      <th className="text-left py-3">Group</th>
+                      <th className="text-right py-3">Price</th>
+                      <th className="text-right py-3">Stock</th>
+                      <th className="text-right py-3">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredProducts.map((p) => (
+                      <tr key={p.id} className="border-b border-[#facc15]/10 hover:bg-white/[0.03]">
+                        <td className="py-2 text-xs font-mono">{p.id}</td>
+                        <td className="py-2">
+                          <div className="font-semibold">{p.name}</div>
+                          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                            {hasTiers(p) && <span className="rounded-full border border-[#facc15]/35 bg-[#facc15]/10 px-2 py-0.5 text-[10px] font-semibold text-[#facc15]">{p.tiers?.length || 0} tiers</span>}
+                            {p.visibility !== 'public' && (
+                              <span className="rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[10px] uppercase">{p.visibility}</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-2">{p.category || '-'}</td>
+                        <td className="py-2">{p.group || '-'}</td>
+                        <td className="py-2 text-right">{priceLabel(p)}</td>
+                        <td className="py-2 text-right">
+                          <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${totalStock(p) <= 5 ? 'bg-red-500/20 text-red-300' : 'bg-emerald-500/20 text-emerald-300'}`}>
+                            {totalStock(p)}
+                          </span>
+                        </td>
+                        <td className="py-2 text-right">
+                          <div className="inline-flex flex-wrap justify-end gap-2">
+                            {!hasTiers(p) && <button onClick={() => adjustStock(p.id, -5)} className={subtleButtonClass}>-5</button>}
+                            {!hasTiers(p) && <button onClick={() => promptSetStock(p)} className={subtleButtonClass}>Set</button>}
+                            <button onClick={() => addStockKeys(p)} className="rounded-xl bg-emerald-500/15 border border-emerald-400/30 px-3 py-2 text-sm text-emerald-300 hover:bg-emerald-500/25">Add Keys</button>
+                            <button onClick={() => openEdit(p)} className={subtleButtonClass}>Edit</button>
+                            <button onClick={() => cloneProduct(p)} className={subtleButtonClass}>Clone</button>
+                            <button onClick={() => deleteProduct(p.id)} className="rounded-xl bg-red-500/15 border border-red-400/35 px-3 py-2 text-sm text-red-300 hover:bg-red-500/25">Delete</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {filteredProducts.length === 0 && (
+                <div className="mt-4 rounded-xl border border-dashed border-[#facc15]/25 bg-[#080808] px-4 py-8 text-center text-sm text-yellow-200/70">
+                  No products found. Create one to start selling.
+                </div>
+              )}
+            </div>
+          )}
+
+          {tab === 'categories' && (
+            <div className="space-y-4">
+              <div className={cardClass}>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <input value={categoryDraft.name} onChange={(e) => setCategoryDraft({ ...categoryDraft, name: e.target.value })} placeholder="Category name" className={fieldClass} />
+                  <input value={categoryDraft.slug} onChange={(e) => setCategoryDraft({ ...categoryDraft, slug: e.target.value })} placeholder="Slug (optional)" className={fieldClass} />
+                  <select value={categoryDraft.visibility} onChange={(e) => setCategoryDraft({ ...categoryDraft, visibility: e.target.value as Category['visibility'] })} className={fieldClass}><option value="public">public</option><option value="hidden">hidden</option></select>
+                  <button onClick={addCategory} className={primaryButtonClass}>Add Category</button>
+                </div>
+              </div>
+              <div className={cardClass}><div className="space-y-2">{categories.map((c) => <div key={c.id} className="bg-white/5 rounded-lg p-3 flex items-center justify-between"><div><div className="font-semibold">{c.name}</div><div className="text-xs text-yellow-200/60">{c.slug} | {c.visibility}</div></div><button onClick={() => { void deleteCategoryById(c.id); }} className="px-2 py-1 rounded bg-red-500/20"><Trash2 className="w-4 h-4" /></button></div>)}{categories.length === 0 && <div className="text-yellow-200/60">No categories yet.</div>}</div></div>
+            </div>
+          )}
+
+          {tab === 'groups' && (
+            <div className="space-y-4">
+              <div className={cardClass}>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <input value={groupDraft.name} onChange={(e) => setGroupDraft({ ...groupDraft, name: e.target.value })} placeholder="Group name" className={fieldClass} />
+                  <select value={groupDraft.visibility} onChange={(e) => setGroupDraft({ ...groupDraft, visibility: e.target.value as ProductGroup['visibility'] })} className={fieldClass}><option value="public">public</option><option value="hidden">hidden</option></select>
+                  <button onClick={addGroup} className={primaryButtonClass}>Add Group</button>
+                </div>
+              </div>
+              <div className={cardClass}><div className="space-y-2">{groups.map((g) => <div key={g.id} className="bg-white/5 rounded-lg p-3 flex items-center justify-between"><div><div className="font-semibold">{g.name}</div><div className="text-xs text-yellow-200/60">{g.visibility}</div></div><button onClick={() => { void deleteGroupById(g.id); }} className="px-2 py-1 rounded bg-red-500/20"><Trash2 className="w-4 h-4" /></button></div>)}{groups.length === 0 && <div className="text-yellow-200/60">No groups yet.</div>}</div></div>
+            </div>
+          )}
+
+          {tab === 'orders' && (
+            <div className={cardClass + ' overflow-x-auto'}>
+              <table className="w-full text-sm">
+                <thead className="text-yellow-200/70 border-b border-[#facc15]/20"><tr><th className="text-left py-2">Order</th><th className="text-left py-2">Customer</th><th className="text-right py-2">Total</th><th className="text-left py-2">Date</th><th className="text-right py-2">Status</th></tr></thead>
+                <tbody>{orders.map((o) => {
+                  const userPayload = (o as unknown as { user?: { email?: string } }).user;
+                  const customerLabel = usersById.get(o.userId)?.email || userPayload?.email || o.userId;
+                  return <tr key={o.id} className="border-b border-[#facc15]/10"><td className="py-2 font-mono text-xs">{o.id}</td><td className="py-2">{customerLabel}</td><td className="py-2 text-right">${o.total.toFixed(2)}</td><td className="py-2 text-yellow-200/60">{new Date(o.createdAt).toLocaleString()}</td><td className="py-2 text-right"><select value={o.status} onChange={(e) => { const nextStatus = e.target.value as Order['status']; void updateOrderStatus(o.id, nextStatus); }} className={fieldCompactClass}><option value="pending">pending</option><option value="completed">completed</option><option value="refunded">refunded</option><option value="cancelled">cancelled</option></select></td></tr>;
+                })}</tbody>
+              </table>
+            </div>
+          )}
+
+          {tab === 'invoices' && (
+            <div className={cardClass + ' overflow-x-auto'}>
+              <table className="w-full text-sm">
+                <thead className="text-yellow-200/70 border-b border-[#facc15]/20"><tr><th className="text-left py-2">Invoice</th><th className="text-left py-2">Order</th><th className="text-left py-2">Email</th><th className="text-right py-2">Total</th><th className="text-left py-2">Date</th><th className="text-right py-2">Status</th></tr></thead>
+                <tbody>{invoices.map((i) => <tr key={i.id} className="border-b border-[#facc15]/10"><td className="py-2 font-mono text-xs">{i.id}</td><td className="py-2 font-mono text-xs">{i.orderId}</td><td className="py-2">{i.email}</td><td className="py-2 text-right">${i.total.toFixed(2)}</td><td className="py-2 text-yellow-200/60">{new Date(i.createdAt).toLocaleString()}</td><td className="py-2 text-right"><span className="px-2 py-1 rounded bg-white/10 text-xs uppercase">{i.status}</span></td></tr>)}</tbody>
+              </table>
+            </div>
+          )}
+
+          {tab === 'customers' && (
+            <div className={cardClass + ' overflow-x-auto'}>
+              <table className="w-full text-sm">
+                <thead className="text-yellow-200/70 border-b border-[#facc15]/20"><tr><th className="text-left py-2">Email</th><th className="text-left py-2">Joined</th><th className="text-right py-2">Orders</th><th className="text-right py-2">Spent</th></tr></thead>
+                <tbody>{customers.map((c) => {
+                  const remoteStats = summaryCustomerStats[c.id];
+                  const localOrders = orders.filter((o) => o.userId === c.id);
+                  const localCompleted = localOrders.filter((o) => o.status === 'completed');
+                  const ordersCount = remoteStats?.orders ?? localOrders.length;
+                  const spent = remoteStats?.spent ?? localCompleted.reduce((s, o) => s + o.total, 0);
+                  return <tr key={c.id} className="border-b border-[#facc15]/10"><td className="py-2">{c.email}</td><td className="py-2 text-yellow-200/60">{new Date(c.createdAt).toLocaleDateString()}</td><td className="py-2 text-right">{ordersCount}</td><td className="py-2 text-right">${spent.toFixed(2)}</td></tr>;
+                })}</tbody>
+              </table>
+            </div>
+          )}
+
+          {tab === 'coupons' && (
+            <div className="space-y-4">
+              <div className={cardClass}>
+                <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+                  <input value={couponDraft.code} onChange={(e) => setCouponDraft({ ...couponDraft, code: e.target.value })} placeholder="Code" className={fieldClass} />
+                  <select value={couponDraft.type} onChange={(e) => setCouponDraft({ ...couponDraft, type: e.target.value as Coupon['type'] })} className={fieldClass}><option value="percent">percent</option><option value="fixed">fixed</option></select>
+                  <input type="number" value={couponDraft.value} onChange={(e) => setCouponDraft({ ...couponDraft, value: Number(e.target.value) })} placeholder="Value" className={fieldClass} />
+                  <input type="number" value={couponDraft.maxUses} onChange={(e) => setCouponDraft({ ...couponDraft, maxUses: Number(e.target.value) })} placeholder="Max uses" className={fieldClass} />
+                  <input type="datetime-local" value={couponDraft.expiresAt} onChange={(e) => setCouponDraft({ ...couponDraft, expiresAt: e.target.value })} className={fieldClass} />
+                  <button onClick={addCoupon} className={primaryButtonClass}>Add Coupon</button>
+                </div>
+              </div>
+              <div className={cardClass + ' overflow-x-auto'}>
+                <table className="w-full text-sm"><thead className="text-yellow-200/70 border-b border-[#facc15]/20"><tr><th className="text-left py-2">Code</th><th className="text-left py-2">Type</th><th className="text-right py-2">Value</th><th className="text-right py-2">Uses</th><th className="text-left py-2">Expires</th><th className="text-right py-2">Actions</th></tr></thead>
+                  <tbody>{coupons.map((c) => <tr key={c.id} className="border-b border-[#facc15]/10"><td className="py-2 font-bold">{c.code}</td><td className="py-2">{c.type}</td><td className="py-2 text-right">{c.value}</td><td className="py-2 text-right">{c.uses}/{c.maxUses}</td><td className="py-2 text-yellow-200/60">{c.expiresAt ? new Date(c.expiresAt).toLocaleString() : '-'}</td><td className="py-2 text-right"><div className="inline-flex gap-2"><button onClick={() => { void toggleCoupon(c); }} className="px-2 py-1 rounded bg-white/10">{c.active ? 'Disable' : 'Enable'}</button><button onClick={() => { void deleteCouponById(c.id); }} className="px-2 py-1 rounded bg-red-500/20">Delete</button></div></td></tr>)}</tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {tab === 'tickets' && (
+            <div className="space-y-4">
+              <div className={cardClass}>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <input value={ticketDraft.subject} onChange={(e) => setTicketDraft({ ...ticketDraft, subject: e.target.value })} placeholder="Subject" className={fieldClass} />
+                  <input value={ticketDraft.customerEmail} onChange={(e) => setTicketDraft({ ...ticketDraft, customerEmail: e.target.value })} placeholder="Customer email" className={fieldClass} />
+                  <select value={ticketDraft.priority} onChange={(e) => setTicketDraft({ ...ticketDraft, priority: e.target.value as SupportTicket['priority'] })} className={fieldClass}><option value="low">low</option><option value="medium">medium</option><option value="high">high</option></select>
+                  <button onClick={addTicket} className={primaryButtonClass}>Add Ticket</button>
+                </div>
+              </div>
+              <div className={cardClass + ' overflow-x-auto'}>
+                <table className="w-full text-sm"><thead className="text-yellow-200/70 border-b border-[#facc15]/20"><tr><th className="text-left py-2">Subject</th><th className="text-left py-2">Customer</th><th className="text-left py-2">Priority</th><th className="text-left py-2">Date</th><th className="text-right py-2">Actions</th></tr></thead>
+                  <tbody>{tickets.map((t) => <tr key={t.id} className="border-b border-[#facc15]/10"><td className="py-2">{t.subject}</td><td className="py-2">{t.customerEmail}</td><td className="py-2">{t.priority}</td><td className="py-2 text-yellow-200/60">{new Date(t.createdAt).toLocaleString()}</td><td className="py-2 text-right"><div className="inline-flex gap-2"><button onClick={() => { void toggleTicket(t); }} className="px-2 py-1 rounded bg-white/10">{t.status === 'open' ? 'Close' : 'Reopen'}</button><button onClick={() => { void deleteTicketById(t.id); }} className="px-2 py-1 rounded bg-red-500/20">Delete</button></div></td></tr>)}</tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {tab === 'feedbacks' && (
+            <div className="space-y-4">
+              <div className={cardClass}>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <input value={feedbackDraft.customerEmail} onChange={(e) => setFeedbackDraft({ ...feedbackDraft, customerEmail: e.target.value })} placeholder="Customer email" className={fieldClass} />
+                  <input type="number" min={1} max={5} value={feedbackDraft.rating} onChange={(e) => setFeedbackDraft({ ...feedbackDraft, rating: Number(e.target.value) })} placeholder="Rating" className={fieldClass} />
+                  <input value={feedbackDraft.message} onChange={(e) => setFeedbackDraft({ ...feedbackDraft, message: e.target.value })} placeholder="Message" className={fieldClass} />
+                  <button onClick={addFeedback} className={primaryButtonClass}>Add Feedback</button>
+                </div>
+              </div>
+              <div className={cardClass}><div className="space-y-2">{feedbacks.map((f) => <div key={f.id} className="bg-white/5 rounded-lg p-3 flex items-start justify-between"><div><div className="font-semibold">{f.customerEmail} | {f.rating}/5</div><div className="text-sm text-yellow-100/80">{f.message}</div><div className="text-xs text-yellow-200/60">{new Date(f.createdAt).toLocaleString()}</div></div><button onClick={() => { void deleteFeedbackById(f.id); }} className="px-2 py-1 rounded bg-red-500/20">Delete</button></div>)}{feedbacks.length === 0 && <div className="text-yellow-200/60">No feedbacks yet.</div>}</div></div>
+            </div>
+          )}
+
+          {tab === 'domains' && (
+            <div className="space-y-4">
+              <div className={cardClass}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <input value={domainDraft.domain} onChange={(e) => setDomainDraft({ domain: e.target.value })} placeholder="example.com" className={fieldClass} />
+                  <button onClick={addDomain} className={primaryButtonClass}>Add Domain</button>
+                </div>
+              </div>
+              <div className={cardClass}><div className="space-y-2">{domains.map((d) => <div key={d.id} className="bg-white/5 rounded-lg p-3 flex items-center justify-between"><div><div className="font-semibold">{d.domain}</div><div className="text-xs text-yellow-200/60">{d.verified ? 'verified' : 'unverified'} | {new Date(d.createdAt).toLocaleDateString()}</div></div><div className="inline-flex gap-2"><button onClick={() => { void toggleDomain(d); }} className="px-2 py-1 rounded bg-white/10">{d.verified ? 'Unverify' : 'Verify'}</button><button onClick={() => { void deleteDomainById(d.id); }} className="px-2 py-1 rounded bg-red-500/20">Delete</button></div></div>)}{domains.length === 0 && <div className="text-yellow-200/60">No domains yet.</div>}</div></div>
+            </div>
+          )}
+
+          {tab === 'payment_methods' && (
+            <div className={cardClass + ' space-y-3'}>
+              <div className="rounded-lg border border-[#facc15]/20 bg-[#0a0a0a] p-3 text-xs text-yellow-200/70">
+                Real checkout status is loaded from API environment variables. Set `STRIPE_SECRET_KEY` for card and `OXAPAY_MERCHANT_API_KEY` for automated crypto.
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <input value={teamDraft.email} onChange={(e) => setTeamDraft({ ...teamDraft, email: e.target.value })} placeholder="staff@email.com" className={fieldClass} />
-                <input value={teamDraft.role} onChange={(e) => setTeamDraft({ ...teamDraft, role: e.target.value })} placeholder="Role" className={fieldClass} />
-                <button onClick={addTeamMember} className={primaryButtonClass}>Add Team Member</button>
+                <div className="rounded-lg bg-white/5 p-3"><div className="text-xs uppercase text-yellow-200/60">Card (Stripe)</div><div className="font-bold">{gatewayMethods.card.enabled ? 'Configured' : 'Not configured'}</div></div>
+                <div className="rounded-lg bg-white/5 p-3"><div className="text-xs uppercase text-yellow-200/60">PayPal</div><div className="font-bold">{gatewayMethods.paypal.enabled ? 'Configured (manual)' : 'Not configured'}</div></div>
+                <div className="rounded-lg bg-white/5 p-3"><div className="text-xs uppercase text-yellow-200/60">Crypto</div><div className="font-bold">{gatewayMethods.crypto.enabled ? (gatewayMethods.crypto.automated ? 'Configured (OxaPay auto)' : 'Configured (manual)') : 'Not configured'}</div></div>
               </div>
+              {paymentMethods.map((method) => (
+                <div key={method.id} className="bg-white/5 rounded-lg p-3 flex items-center justify-between gap-3">
+                  <div className="flex-1">
+                    <div className="font-semibold">{method.name}</div>
+                    <input
+                      value={method.instructions}
+                      onChange={(e) => setPaymentMethods((prev) => prev.map((item) => item.id === method.id ? { ...item, instructions: e.target.value } : item))}
+                      onBlur={() => {
+                        const latest = paymentMethods.find((item) => item.id === method.id) || method;
+                        void updatePaymentMethod(latest);
+                      }}
+                      className={`${fieldCompactClass} mt-1 w-full`}
+                    />
+                  </div>
+                  <button onClick={() => { void updatePaymentMethod({ ...method, enabled: !method.enabled }); }} className="px-2 py-1 rounded bg-white/10">{method.enabled ? 'Enabled' : 'Disabled'}</button>
+                </div>
+              ))}
             </div>
-            <div className={cardClass}><div className="space-y-2">{team.map((m) => <div key={m.id} className="bg-white/5 rounded-lg p-3 flex items-center justify-between"><div><div className="font-semibold">{m.email}</div><div className="text-xs text-yellow-200/60">{m.role} | {new Date(m.createdAt).toLocaleDateString()}</div></div><button onClick={() => { void deleteTeamMemberById(m.id); }} className="px-2 py-1 rounded bg-red-500/20">Delete</button></div>)}{team.length === 0 && <div className="text-yellow-200/60">No team members yet.</div>}</div></div>
-          </div>
-        )}
+          )}
 
-        {tab === 'blacklist' && (
-          <div className="space-y-4">
-            <div className={cardClass}>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <select value={blacklistDraft.type} onChange={(e) => setBlacklistDraft({ ...blacklistDraft, type: e.target.value as BlacklistEntry['type'] })} className={fieldClass}><option value="email">email</option><option value="ip">ip</option><option value="user">user</option></select>
-                <input value={blacklistDraft.value} onChange={(e) => setBlacklistDraft({ ...blacklistDraft, value: e.target.value })} placeholder="Value" className={fieldClass} />
-                <input value={blacklistDraft.reason} onChange={(e) => setBlacklistDraft({ ...blacklistDraft, reason: e.target.value })} placeholder="Reason" className={fieldClass} />
-                <button onClick={addBlacklistEntry} className={primaryButtonClass}>Add Entry</button>
+          {tab === 'team' && (
+            <div className="space-y-4">
+              <div className={cardClass}>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <input value={teamDraft.email} onChange={(e) => setTeamDraft({ ...teamDraft, email: e.target.value })} placeholder="staff@email.com" className={fieldClass} />
+                  <input value={teamDraft.role} onChange={(e) => setTeamDraft({ ...teamDraft, role: e.target.value })} placeholder="Role" className={fieldClass} />
+                  <button onClick={addTeamMember} className={primaryButtonClass}>Add Team Member</button>
+                </div>
               </div>
+              <div className={cardClass}><div className="space-y-2">{team.map((m) => <div key={m.id} className="bg-white/5 rounded-lg p-3 flex items-center justify-between"><div><div className="font-semibold">{m.email}</div><div className="text-xs text-yellow-200/60">{m.role} | {new Date(m.createdAt).toLocaleDateString()}</div></div><button onClick={() => { void deleteTeamMemberById(m.id); }} className="px-2 py-1 rounded bg-red-500/20">Delete</button></div>)}{team.length === 0 && <div className="text-yellow-200/60">No team members yet.</div>}</div></div>
             </div>
-            <div className={cardClass}><div className="space-y-2">{blacklist.map((b) => <div key={b.id} className="bg-white/5 rounded-lg p-3 flex items-center justify-between"><div><div className="font-semibold">{b.value}</div><div className="text-xs text-yellow-200/60">{b.type} | {b.reason}</div></div><button onClick={() => { void deleteBlacklistEntryById(b.id); }} className="px-2 py-1 rounded bg-red-500/20">Delete</button></div>)}{blacklist.length === 0 && <div className="text-yellow-200/60">No blacklist entries yet.</div>}</div></div>
-          </div>
-        )}
+          )}
 
-        {tab === 'settings' && (
-          <div className={cardClass + ' max-w-4xl space-y-3'}>
-            <input value={settings.storeName} onChange={(e) => setSettings({ ...settings, storeName: e.target.value })} className={fieldClass} placeholder="Store name" />
-            <input
-              value={settings.logoUrl || ''}
-              onChange={(e) => setSettings({ ...settings, logoUrl: e.target.value })}
-              className={fieldClass}
-              placeholder="Logo URL (used on website + bot panels)"
-            />
-            <input
-              value={settings.bannerUrl || ''}
-              onChange={(e) => setSettings({ ...settings, bannerUrl: e.target.value })}
-              className={fieldClass}
-              placeholder="Banner URL (optional)"
-            />
-            <input
-              value={settings.faviconUrl || ''}
-              onChange={(e) => setSettings({ ...settings, faviconUrl: e.target.value })}
-              className={fieldClass}
-              placeholder="Favicon URL (optional)"
-            />
-            <input value={settings.currency} onChange={(e) => setSettings({ ...settings, currency: e.target.value })} className={fieldClass} placeholder="Currency" />
-            <input value={settings.paypalEmail} onChange={(e) => setSettings({ ...settings, paypalEmail: e.target.value })} className={fieldClass} placeholder="PayPal email" />
-            <input value={settings.stripeKey} onChange={(e) => setSettings({ ...settings, stripeKey: e.target.value })} className={fieldClass} placeholder="Stripe key" />
-            <input value={settings.cryptoAddress} onChange={(e) => setSettings({ ...settings, cryptoAddress: e.target.value })} className={fieldClass} placeholder="Crypto address" />
-            <button onClick={saveSettings} className={`${primaryButtonClass} flex items-center gap-2`}><Save className="w-4 h-4" /> Save Settings</button>
-          </div>
-        )}
+          {tab === 'blacklist' && (
+            <div className="space-y-4">
+              <div className={cardClass}>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <select value={blacklistDraft.type} onChange={(e) => setBlacklistDraft({ ...blacklistDraft, type: e.target.value as BlacklistEntry['type'] })} className={fieldClass}><option value="email">email</option><option value="ip">ip</option><option value="user">user</option></select>
+                  <input value={blacklistDraft.value} onChange={(e) => setBlacklistDraft({ ...blacklistDraft, value: e.target.value })} placeholder="Value" className={fieldClass} />
+                  <input value={blacklistDraft.reason} onChange={(e) => setBlacklistDraft({ ...blacklistDraft, reason: e.target.value })} placeholder="Reason" className={fieldClass} />
+                  <button onClick={addBlacklistEntry} className={primaryButtonClass}>Add Entry</button>
+                </div>
+              </div>
+              <div className={cardClass}><div className="space-y-2">{blacklist.map((b) => <div key={b.id} className="bg-white/5 rounded-lg p-3 flex items-center justify-between"><div><div className="font-semibold">{b.value}</div><div className="text-xs text-yellow-200/60">{b.type} | {b.reason}</div></div><button onClick={() => { void deleteBlacklistEntryById(b.id); }} className="px-2 py-1 rounded bg-red-500/20">Delete</button></div>)}{blacklist.length === 0 && <div className="text-yellow-200/60">No blacklist entries yet.</div>}</div></div>
+            </div>
+          )}
 
-        {tab === 'security' && (
-          <div className={cardClass + ' space-y-2 max-h-[70vh] overflow-y-auto'}>
-            {logs.map((log) => <div key={log.id} className="bg-white/5 rounded-lg p-3 flex items-center justify-between"><div><div className="font-semibold">{log.event}</div><div className="text-xs text-yellow-200/60">{new Date(log.timestamp).toLocaleString()} | {log.ip}</div></div><span className={`px-2 py-1 rounded text-xs uppercase ${log.status === 'SUCCESS' ? 'bg-green-500/20 text-green-300' : log.status === 'WARNING' ? 'bg-yellow-500/20 text-yellow-300' : 'bg-red-500/20 text-red-300'}`}>{log.status}</span></div>)}
-          </div>
-        )}
+          {tab === 'settings' && (
+            <div className={cardClass + ' max-w-4xl space-y-3'}>
+              <input value={settings.storeName} onChange={(e) => setSettings({ ...settings, storeName: e.target.value })} className={fieldClass} placeholder="Store name" />
+              <input
+                value={settings.logoUrl || ''}
+                onChange={(e) => setSettings({ ...settings, logoUrl: e.target.value })}
+                className={fieldClass}
+                placeholder="Logo URL (used on website + bot panels)"
+              />
+              <input
+                value={settings.bannerUrl || ''}
+                onChange={(e) => setSettings({ ...settings, bannerUrl: e.target.value })}
+                className={fieldClass}
+                placeholder="Banner URL (optional)"
+              />
+              <input
+                value={settings.faviconUrl || ''}
+                onChange={(e) => setSettings({ ...settings, faviconUrl: e.target.value })}
+                className={fieldClass}
+                placeholder="Favicon URL (optional)"
+              />
+              <input value={settings.currency} onChange={(e) => setSettings({ ...settings, currency: e.target.value })} className={fieldClass} placeholder="Currency" />
+              <input value={settings.paypalEmail} onChange={(e) => setSettings({ ...settings, paypalEmail: e.target.value })} className={fieldClass} placeholder="PayPal email or paypal.me link" />
+              <input value={settings.stripeKey} onChange={(e) => setSettings({ ...settings, stripeKey: e.target.value })} className={fieldClass} placeholder="Stripe key" />
+              <input value={settings.cryptoAddress} onChange={(e) => setSettings({ ...settings, cryptoAddress: e.target.value })} className={fieldClass} placeholder="Crypto address" />
+              <button onClick={saveSettings} className={`${primaryButtonClass} flex items-center gap-2`}><Save className="w-4 h-4" /> Save Settings</button>
+            </div>
+          )}
+
+          {tab === 'security' && (
+            <div className={cardClass + ' space-y-2 max-h-[70vh] overflow-y-auto'}>
+              {logs.map((log) => <div key={log.id} className="bg-white/5 rounded-lg p-3 flex items-center justify-between"><div><div className="font-semibold">{log.event}</div><div className="text-xs text-yellow-200/60">{new Date(log.timestamp).toLocaleString()} | {log.ip}</div></div><span className={`px-2 py-1 rounded text-xs uppercase ${log.status === 'SUCCESS' ? 'bg-green-500/20 text-green-300' : log.status === 'WARNING' ? 'bg-yellow-500/20 text-yellow-300' : 'bg-red-500/20 text-red-300'}`}>{log.status}</span></div>)}
+            </div>
+          )}
         </div>
       </main>
 
@@ -1480,11 +1478,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
                         key={tier.id}
                         type="button"
                         onClick={() => setInventoryTierId(tier.id)}
-                        className={`rounded-xl border px-3 py-2 text-left transition-all ${
-                          inventoryTierId === tier.id
+                        className={`rounded-xl border px-3 py-2 text-left transition-all ${inventoryTierId === tier.id
                             ? 'border-[#facc15]/50 bg-[#facc15]/12'
                             : 'border-white/15 bg-white/5 hover:border-[#facc15]/30'
-                        }`}
+                          }`}
                       >
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-semibold">{tier.name}</span>
@@ -1543,11 +1540,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_0%,rgba(250,204,21,0.13),transparent_34%),radial-gradient(circle_at_90%_12%,rgba(59,130,246,0.08),transparent_32%),radial-gradient(circle_at_bottom_left,rgba(250,204,21,0.06),transparent_38%)]" />
             <div className="relative border-b border-white/10 bg-gradient-to-b from-white/[0.06] to-transparent p-4 sm:p-5">
               <div className="flex items-center justify-between gap-3">
-              <div>
+                <div>
                   <h3 className="text-3xl font-black tracking-tight text-white">{draft.name ? 'Edit Product' : 'Create Product'}</h3>
                   <div className="mt-1 text-[11px] uppercase tracking-[0.2em] text-yellow-200/65">Catalog Configuration</div>
-              </div>
-              <div className="flex items-center gap-2">
+                </div>
+                <div className="flex items-center gap-2">
                   <button type="button" onClick={() => setOpenEditor(false)} className={subtleButtonClass}>Cancel</button>
                   <button type="submit" form="admin-product-editor-form" className={`${primaryButtonClass} inline-flex items-center gap-2`}><Save className="h-4 w-4" /> Save</button>
                   <button onClick={() => setOpenEditor(false)} className="rounded-lg p-2 hover:bg-white/10"><X className="h-5 w-5" /></button>

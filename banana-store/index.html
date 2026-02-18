@@ -1,182 +1,243 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Roblox Keys - Premium Digital Goods</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <style>
-      :root {
-        --mouse-x: 50%;
-        --mouse-y: 50%;
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="cf-turnstile-site-key" content="0x4AAAAAAACfNOtEXpb_0oQkW" />
+  <meta http-equiv="X-Content-Security-Policy"
+    content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://cdn.tailwindcss.com https://esm.sh; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https:; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preconnect" href="https://cdn.tailwindcss.com" />
+  <link rel="preconnect" href="https://esm.sh" />
+  <link rel="preconnect" href="https://challenges.cloudflare.com" />
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+  <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
+  <link rel="dns-prefetch" href="https://cdn.tailwindcss.com" />
+  <link rel="dns-prefetch" href="https://esm.sh" />
+  <title>Roblox Keys - Premium Digital Goods</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+    rel="stylesheet">
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
+  <style>
+    :root {
+      --mouse-x: 50%;
+      --mouse-y: 50%;
+    }
+
+    @keyframes reveal {
+      from {
+        opacity: 0;
+        transform: translateY(30px) scale(0.98);
       }
 
-      @keyframes reveal {
-        from { opacity: 0; transform: translateY(30px) scale(0.98); }
-        to { opacity: 1; transform: translateY(0) scale(1); }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
       }
 
-      @keyframes slideUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
       }
 
-      @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
+      to {
+        opacity: 1;
+      }
+    }
+
+    @keyframes popIn {
+      0% {
+        transform: scale(0.9) opacity(0);
       }
 
-      @keyframes popIn {
-        0% { transform: scale(0.9) opacity(0); }
-        70% { transform: scale(1.05); }
-        100% { transform: scale(1) opacity(1); }
+      70% {
+        transform: scale(1.05);
       }
 
-      @keyframes qtySlideUp {
-        from { opacity: 0; transform: translateY(8px); }
-        to { opacity: 1; transform: translateY(0); }
+      100% {
+        transform: scale(1) opacity(1);
+      }
+    }
+
+    @keyframes qtySlideUp {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
       }
 
-      @keyframes qtySlideDown {
-        from { opacity: 0; transform: translateY(-8px); }
-        to { opacity: 1; transform: translateY(0); }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes qtySlideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-8px);
       }
 
-      @keyframes tierBackdropIn {
-        0% {
-          opacity: 0;
-          backdrop-filter: blur(0px);
-          -webkit-backdrop-filter: blur(0px);
-        }
-        35% {
-          opacity: 0.45;
-          backdrop-filter: blur(4px);
-          -webkit-backdrop-filter: blur(4px);
-        }
-        70% {
-          opacity: 0.8;
-          backdrop-filter: blur(9px);
-          -webkit-backdrop-filter: blur(9px);
-        }
-        100% {
-          opacity: 1;
-          backdrop-filter: blur(14px);
-          -webkit-backdrop-filter: blur(14px);
-        }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes tierBackdropIn {
+      0% {
+        opacity: 0;
+        backdrop-filter: blur(0px);
+        -webkit-backdrop-filter: blur(0px);
       }
 
-      @keyframes tierPanelIn {
-        0% {
-          opacity: 0;
-          transform: translateY(72px) scale(0.97);
-        }
-        60% {
-          opacity: 0.92;
-          transform: translateY(10px) scale(0.995);
-        }
-        100% {
-          opacity: 1;
-          transform: translateY(0) scale(1);
-        }
+      35% {
+        opacity: 0.45;
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
       }
 
-      @keyframes tierBackdropOut {
-        0% {
-          opacity: 1;
-          backdrop-filter: blur(14px);
-          -webkit-backdrop-filter: blur(14px);
-        }
-        100% {
-          opacity: 0;
-          backdrop-filter: blur(0px);
-          -webkit-backdrop-filter: blur(0px);
-        }
+      70% {
+        opacity: 0.8;
+        backdrop-filter: blur(9px);
+        -webkit-backdrop-filter: blur(9px);
       }
 
-      @keyframes tierPanelOut {
-        0% {
-          opacity: 1;
-          transform: translateY(0) scale(1);
-        }
-        100% {
-          opacity: 0;
-          transform: translateY(54px) scale(0.985);
-        }
+      100% {
+        opacity: 1;
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+      }
+    }
+
+    @keyframes tierPanelIn {
+      0% {
+        opacity: 0;
+        transform: translateY(72px) scale(0.97);
       }
 
-      .animate-reveal {
-        animation: reveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      60% {
+        opacity: 0.92;
+        transform: translateY(10px) scale(0.995);
       }
 
-      .animate-slide-up {
-        animation: slideUp 0.5s ease-out forwards;
+      100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    @keyframes tierBackdropOut {
+      0% {
+        opacity: 1;
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
       }
 
-      .animate-fade-in {
-        animation: fadeIn 0.4s ease-in forwards;
+      100% {
+        opacity: 0;
+        backdrop-filter: blur(0px);
+        -webkit-backdrop-filter: blur(0px);
+      }
+    }
+
+    @keyframes tierPanelOut {
+      0% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
       }
 
-      .animate-pop-in {
-        animation: popIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+      100% {
+        opacity: 0;
+        transform: translateY(54px) scale(0.985);
       }
+    }
 
-      body {
-        font-family: 'Inter', sans-serif;
-        background-color: #050505;
-        background-image: 
-          linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-          linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
-        background-size: 45px 45px;
-        color: #f8fafc;
-        min-height: 100vh;
-        background-attachment: fixed;
-        position: relative;
-        overflow-x: hidden;
-      }
+    .animate-reveal {
+      animation: reveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
 
-      body::before {
-        content: '';
-        position: fixed;
-        inset: 0;
-        background: radial-gradient(
-          circle at var(--mouse-x) var(--mouse-y), 
-          rgba(250, 204, 21, 0.15) 0%, 
-          transparent 50%
-        );
-        pointer-events: none;
-        z-index: 1;
-        transition: background 0.15s ease-out;
-      }
+    .animate-slide-up {
+      animation: slideUp 0.5s ease-out forwards;
+    }
 
-      body::after {
-        content: '';
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 40vh;
-        background: radial-gradient(circle at 50% -10%, rgba(250, 204, 21, 0.1) 0%, transparent 100%);
-        pointer-events: none;
-        z-index: 0;
-      }
+    .animate-fade-in {
+      animation: fadeIn 0.4s ease-in forwards;
+    }
 
-      .card-glow {
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-      }
+    .animate-pop-in {
+      animation: popIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
 
-      .card-glow:hover {
-        box-shadow: 0 0 40px rgba(250, 204, 21, 0.15);
-        border-color: rgba(250, 204, 21, 0.3);
-        transform: translateY(-5px);
-      }
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #050505;
+      background-image:
+        linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+      background-size: 45px 45px;
+      color: #f8fafc;
+      min-height: 100vh;
+      background-attachment: fixed;
+      position: relative;
+      overflow-x: hidden;
+    }
 
-      .brand-gradient-text {
-        background: linear-gradient(to bottom, #fff 30%, #facc15 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-      }
-    </style>
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at var(--mouse-x) var(--mouse-y),
+          rgba(250, 204, 21, 0.15) 0%,
+          transparent 50%);
+      pointer-events: none;
+      z-index: 1;
+      transition: background 0.15s ease-out;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 40vh;
+      background: radial-gradient(circle at 50% -10%, rgba(250, 204, 21, 0.1) 0%, transparent 100%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .card-glow {
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .card-glow:hover {
+      box-shadow: 0 0 40px rgba(250, 204, 21, 0.15);
+      border-color: rgba(250, 204, 21, 0.3);
+      transform: translateY(-5px);
+    }
+
+    .brand-gradient-text {
+      background: linear-gradient(to bottom, #fff 30%, #facc15 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+  </style>
   <script type="importmap">
 {
   "imports": {
@@ -188,10 +249,85 @@
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
+  <link rel="stylesheet" href="/index.css">
 </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
-  </body>
+
+<body>
+  <!-- Cloudflare Turnstile Verification Overlay -->
+  <div id="cf-shield"
+    style="position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;flex-direction:column;background:#050505;transition:opacity .5s ease">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:24px">
+      <div
+        style="width:64px;height:64px;border-radius:16px;background:linear-gradient(135deg,#facc15,#eab308);display:flex;align-items:center;justify-content:center;animation:popIn .6s cubic-bezier(.34,1.56,.64,1) forwards;box-shadow:0 0 40px rgba(250,204,21,.25)">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#050505" stroke-width="2.5"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        </svg>
+      </div>
+      <div style="font-family:Inter,sans-serif;color:#f8fafc;font-size:18px;font-weight:600;letter-spacing:-.02em">
+        Verifying you're human...</div>
+      <div style="width:200px;height:3px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden">
+        <div id="cf-bar"
+          style="width:0%;height:100%;border-radius:4px;background:linear-gradient(90deg,#facc15,#eab308);transition:width .3s ease">
+        </div>
+      </div>
+      <div style="font-family:Inter,sans-serif;color:rgba(255,255,255,.35);font-size:12px">Protected by Cloudflare</div>
+    </div>
+    <div id="cf-turnstile-widget" style="position:absolute;bottom:20px;opacity:0"></div>
+  </div>
+  <script>
+    (function () {
+      var shield = document.getElementById('cf-shield');
+      var bar = document.getElementById('cf-bar');
+      var passed = false;
+      var step = 0;
+      var iv = setInterval(function () { if (step < 80) { step += Math.random() * 8; bar.style.width = Math.min(step, 80) + '%' } }, 400);
+      function pass() {
+        if (passed) return; passed = true; clearInterval(iv);
+        bar.style.width = '100%';
+        try { sessionStorage.setItem('cf-turnstile-passed', '1') } catch (e) { }
+        setTimeout(function () { shield.style.opacity = '0'; setTimeout(function () { shield.style.display = 'none' }, 500) }, 400);
+      }
+      var siteKey = '';
+      try {
+        var scripts = document.querySelectorAll('script[src*="turnstile"]');
+        var metaEl = document.querySelector('meta[name="cf-turnstile-site-key"]');
+        if (metaEl) siteKey = metaEl.getAttribute('content') || '';
+      } catch (e) { }
+      if (!siteKey) {
+        /* Check if VITE injects it later; fallback auto-pass after 2s */
+        setTimeout(function () {
+          if (!window.__CF_TURNSTILE_SITE_KEY) { pass(); return; }
+          siteKey = window.__CF_TURNSTILE_SITE_KEY;
+          renderWidget(siteKey);
+        }, 800);
+      } else {
+        renderWidget(siteKey);
+      }
+      function renderWidget(key) {
+        function tryRender() {
+          if (!window.turnstile) { setTimeout(tryRender, 200); return; }
+          window.turnstile.render('#cf-turnstile-widget', {
+            sitekey: key,
+            callback: function (token) {
+              try { sessionStorage.setItem('cf-turnstile-token', token) } catch (e) { }
+              pass();
+            },
+            'error-callback': function () { pass(); },
+            'expired-callback': function () { },
+            theme: 'dark',
+            appearance: 'interaction-only'
+          });
+        }
+        tryRender();
+      }
+      /* Absolute fallback: if nothing works after 8s, let them through */
+      setTimeout(pass, 8000);
+    })();
+  </script>
+
+  <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+
 </html>
