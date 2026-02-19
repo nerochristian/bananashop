@@ -212,14 +212,12 @@ const normalizeProduct = (p: ProductPayload): Product => {
   }
 
   const tiers = Array.isArray(p.tiers) ? p.tiers.map(normalizeTier) : [];
-  const firstTierImage = tiers.find((tier) => readString(tier.image))?.image || '';
   const productImage = pickFirstString(
     p.image,
     (p as Record<string, unknown>).imageUrl,
     (p as Record<string, unknown>).image_url,
     (p as Record<string, unknown>).thumbnail,
-    (p as Record<string, unknown>).icon,
-    firstTierImage
+    (p as Record<string, unknown>).icon
   );
   const bannerImage = pickFirstString(
     p.bannerImage,
