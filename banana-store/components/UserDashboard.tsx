@@ -11,6 +11,7 @@ interface UserDashboardProps {
 }
 
 const JUST_SIGNED_IN_KEY = 'robloxkeys.just_signed_in';
+const VAULT_THEME_KEY_PREFIX = 'robloxkeys.vault_theme';
 
 const DiscordGlyph = ({ className = 'h-4 w-4' }: { className?: string }) => (
   <svg viewBox="0 0 24 24" className={className} aria-hidden="true" fill="currentColor">
@@ -76,8 +77,27 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ user, onLogout, on
   const [discordActionError, setDiscordActionError] = useState('');
   const [isDiscordPromptOpen, setIsDiscordPromptOpen] = useState(false);
   const [isDiscordStatusOpen, setIsDiscordStatusOpen] = useState(false);
+  const [vaultThemeLevel, setVaultThemeLevel] = useState(62);
 
   const discordLinked = Boolean((user.discordId || '').trim());
+  const vaultThemeRatio = Math.max(0, Math.min(1, vaultThemeLevel / 100));
+
+  useEffect(() => {
+    const storageKey = `${VAULT_THEME_KEY_PREFIX}.${user.id || 'guest'}`;
+    const raw = localStorage.getItem(storageKey);
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed)) {
+      setVaultThemeLevel(62);
+      return;
+    }
+    const clamped = Math.max(0, Math.min(100, Math.round(parsed)));
+    setVaultThemeLevel(clamped);
+  }, [user.id]);
+
+  useEffect(() => {
+    const storageKey = `${VAULT_THEME_KEY_PREFIX}.${user.id || 'guest'}`;
+    localStorage.setItem(storageKey, String(Math.max(0, Math.min(100, Math.round(vaultThemeLevel)))));
+  }, [user.id, vaultThemeLevel]);
 
   useEffect(() => {
     let cancelled = false;
@@ -192,6 +212,20 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ user, onLogout, on
 
   return (
     <div className="relative mx-auto min-h-screen max-w-7xl overflow-hidden px-4 pb-24 pt-24 sm:px-6 sm:pb-40 sm:pt-32">
+      <div className="pointer-events-none absolute inset-0 z-0">
+        <div
+          className="absolute inset-0 transition-opacity duration-700"
+          style={{
+            opacity: 0.2 + vaultThemeRatio * 0.65,
+            background: `
+              radial-gradient(circle at 18% 22%, rgba(250, 204, 21, ${0.07 + vaultThemeRatio * 0.34}), transparent 42%),
+              radial-gradient(circle at 82% 78%, rgba(250, 204, 21, ${0.04 + vaultThemeRatio * 0.24}), transparent 46%),
+              linear-gradient(135deg, rgba(250, 204, 21, ${0.02 + vaultThemeRatio * 0.18}) 0%, rgba(0, 0, 0, 0) 58%)
+            `,
+          }}
+        />
+      </div>
+
       <header className="relative z-10 mb-12 flex flex-col justify-between gap-6 md:mb-20 md:flex-row md:items-end md:gap-8">
         <div>
           <div className="flex items-center gap-3 mb-2">
@@ -315,6 +349,29 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ user, onLogout, on
 
           <div className="rounded-[26px] border border-white/5 bg-[#0a0a0a] p-6 sm:rounded-[40px] sm:p-10">
             <h3 className="text-lg font-black text-white mb-6 tracking-tight italic uppercase">Vault Operations</h3>
+
+            <div className="mb-6 rounded-2xl border border-[#facc15]/20 bg-[#0d0d0d] p-4">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/65">Vault Theme</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#facc15]">{vaultThemeLevel}% Yellow</p>
+              </div>
+
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={vaultThemeLevel}
+                onChange={(event) => setVaultThemeLevel(Number(event.target.value))}
+                className="w-full accent-[#facc15]"
+                aria-label="Vault color balance slider"
+              />
+
+              <div className="mt-2 flex items-center justify-between text-[9px] font-black uppercase tracking-[0.16em] text-white/35">
+                <span>Black</span>
+                <span>Yellow</span>
+              </div>
+            </div>
+
             <ul className="space-y-4">
               <li className="flex items-center gap-3 text-white/30 hover:text-white transition-colors cursor-pointer group">
                 <div className="p-2 bg-white/5 rounded-lg group-hover:bg-[#facc15] group-hover:text-black transition-colors">
