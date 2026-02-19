@@ -240,27 +240,32 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ user, onLogout, on
       <div className="relative z-10 mb-6">
         <div className="inline-flex w-full max-w-xl items-center gap-3 rounded-2xl border border-white/10 bg-black/45 px-3 py-3 backdrop-blur-md">
           <span className="shrink-0 text-[10px] font-black uppercase tracking-[0.18em] text-white/55">Theme</span>
-          <div className="relative h-10 flex-1 overflow-hidden rounded-full border border-white/15 bg-[#090909]">
-            <div className="absolute inset-0 bg-gradient-to-r from-[#050505] via-[#151515] to-[#facc15]/85" />
-            <div
-              className="absolute top-1 h-8 w-12 rounded-full border border-white/30 bg-white/90 shadow-[0_8px_18px_rgba(0,0,0,0.35)] transition-all duration-200"
-              style={{ left: `calc(${themeRatio * 100}% - 24px)` }}
-            />
-            <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-[9px] font-black uppercase tracking-[0.14em] text-white/75">
-              Black
+          <div className="flex-1">
+            <div className="relative h-10 overflow-hidden rounded-full border border-white/15 bg-[#090909]">
+              <div className="absolute inset-0 bg-gradient-to-r from-[#050505] via-[#151515] to-[#facc15]/85" />
+              <div className="pointer-events-none absolute inset-y-0 left-3 z-10 flex items-center text-[9px] font-black uppercase tracking-[0.14em] text-white/75">
+                Black
+              </div>
+              <div className="pointer-events-none absolute inset-y-0 right-3 z-10 flex items-center text-[9px] font-black uppercase tracking-[0.14em] text-[#fef08a]">
+                Yellow
+              </div>
+              <div
+                className="pointer-events-none absolute top-1 z-20 h-8 w-11 rounded-full border border-black/35 bg-white shadow-[0_10px_24px_rgba(0,0,0,0.45)] transition-all duration-200"
+                style={{
+                  left: `clamp(22px, ${themeRatio * 100}%, calc(100% - 22px))`,
+                  transform: 'translateX(-50%)',
+                }}
+              />
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={themeBlend}
+                onChange={(event) => onThemeBlendChange(Number(event.target.value))}
+                className="absolute inset-0 z-30 h-full w-full cursor-pointer opacity-0"
+                aria-label="Vault theme slider"
+              />
             </div>
-            <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[9px] font-black uppercase tracking-[0.14em] text-[#fef08a]">
-              Yellow
-            </div>
-            <input
-              type="range"
-              min={0}
-              max={100}
-              value={themeBlend}
-              onChange={(event) => onThemeBlendChange(Number(event.target.value))}
-              className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-              aria-label="Vault theme slider"
-            />
           </div>
           <span className="w-16 shrink-0 text-right text-[10px] font-black uppercase tracking-[0.16em] text-[#facc15]">
             {Math.max(0, Math.min(100, Math.round(themeBlend)))}%
