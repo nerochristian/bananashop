@@ -5,6 +5,8 @@ type RuntimeBranding = {
   faviconUrl?: string;
 };
 
+const STORE_API_BASE_URL = ((import.meta.env.VITE_STORE_API_URL as string | undefined) || "").trim().replace(/\/$/, "");
+
 export const BRAND_CONFIG = {
   // Shared brand asset URLs for website surfaces.
   // Keep these aligned with bot branding constants/env where possible.
@@ -52,13 +54,62 @@ export const BRAND_CONFIG = {
 
 const clean = (value: unknown): string => (typeof value === "string" ? value.trim() : "");
 
+const normalizeBrandAssetUrl = (value: unknown): string => {
+  const raw = clean(value);
+  if (!raw) return "";
+  if (/^(data:|blob:)/i.test(raw)) return raw;
+
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(raw)) {
+    try {
+      const parsed = new URL(raw);
+      let pathname = parsed.pathname || "";
+      if (pathname.startsWith("/media/")) pathname = `/shop${pathname}`;
+      if (pathname.startsWith("/shop/media/")) {
+        return STORE_API_BASE_URL ? `${STORE_API_BASE_URL}${pathname}${parsed.search || ""}` : `${pathname}${parsed.search || ""}`;
+      }
+
+      const host = parsed.hostname.toLowerCase();
+      if (host === "media.discordapp.net" || host === "cdn.discordapp.com") {
+        parsed.hostname = "cdn.discordapp.com";
+        const allowedParams = new Set(["size", "quality", "format", "width", "height"]);
+        const keep: Array<[string, string]> = [];
+        for (const [key, itemValue] of parsed.searchParams.entries()) {
+          if (allowedParams.has(key.toLowerCase())) {
+            keep.push([key, itemValue]);
+          }
+        }
+        parsed.search = "";
+        for (const [key, itemValue] of keep) {
+          parsed.searchParams.append(key, itemValue);
+        }
+        return parsed.toString();
+      }
+    } catch {
+      return raw;
+    }
+    return raw;
+  }
+
+  if (/^img-[a-z0-9-]+$/i.test(raw)) {
+    return STORE_API_BASE_URL ? `${STORE_API_BASE_URL}/shop/media/${raw}` : `/shop/media/${raw}`;
+  }
+  if (raw.startsWith("/media/")) {
+    const normalized = `/shop${raw}`;
+    return STORE_API_BASE_URL ? `${STORE_API_BASE_URL}${normalized}` : normalized;
+  }
+  if (raw.startsWith("/shop/")) {
+    return STORE_API_BASE_URL ? `${STORE_API_BASE_URL}${raw}` : raw;
+  }
+  return raw;
+};
+
 export const applyRuntimeBranding = (branding: RuntimeBranding | null | undefined) => {
   if (!branding || typeof branding !== "object") return;
 
   const storeName = clean(branding.storeName);
-  const logoUrl = clean(branding.logoUrl);
-  const bannerUrl = clean(branding.bannerUrl);
-  const faviconUrl = clean(branding.faviconUrl);
+  const logoUrl = normalizeBrandAssetUrl(branding.logoUrl);
+  const bannerUrl = normalizeBrandAssetUrl(branding.bannerUrl);
+  const faviconUrl = normalizeBrandAssetUrl(branding.faviconUrl);
 
   if (storeName) {
     BRAND_CONFIG.identity.storeName = storeName;

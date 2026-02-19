@@ -41,6 +41,24 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onView }) => 
     : 'bg-[#22c55e]';
   const badgeIcon = (product.cardBadgeIcon || 'grid').toLowerCase();
   const badgeLabel = (product.cardBadgeLabel || (product.type === ServiceType.BUNDLE ? 'BUNDLE' : 'ACCOUNT')).trim();
+  const fallbackImage = React.useMemo(() => buildInlineFallback(product.name), [product.name]);
+  const imageCandidates = React.useMemo(() => {
+    const items = [
+      product.image,
+      ...(product.tiers || []).map((tier) => tier.image),
+      product.bannerImage,
+    ]
+      .map((value) => String(value || '').trim())
+      .filter(Boolean);
+    return Array.from(new Set(items));
+  }, [product.image, product.bannerImage, product.tiers]);
+  const [imageCandidateIndex, setImageCandidateIndex] = React.useState(0);
+
+  React.useEffect(() => {
+    setImageCandidateIndex(0);
+  }, [imageCandidates]);
+
+  const currentImage = imageCandidates[imageCandidateIndex] || fallbackImage;
   
   const getHeaderGradient = (type: ServiceType) => {
     switch (type) {
@@ -82,13 +100,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onView }) => 
         {/* Central Logo Circle */}
         <div className="w-28 h-28 md:w-32 md:h-32 bg-black/20 backdrop-blur-2xl rounded-full flex items-center justify-center border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] transform transition-all duration-700 group-hover:scale-125 group-hover:rotate-[15deg]">
            <img 
-            src={product.image || buildInlineFallback(product.name)} 
+            src={currentImage} 
             alt={product.name} 
             className="w-16 h-16 md:w-20 md:h-20 object-contain opacity-95 drop-shadow-2xl" 
             onError={(e) => {
               const img = e.currentTarget;
+              if (imageCandidateIndex < imageCandidates.length - 1) {
+                setImageCandidateIndex((prev) => prev + 1);
+                return;
+              }
               img.onerror = null;
-              img.src = buildInlineFallback(product.name);
+              img.src = fallbackImage;
             }}
           />
         </div>

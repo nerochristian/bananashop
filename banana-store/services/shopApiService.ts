@@ -109,24 +109,46 @@ const pickFirstString = (...values: unknown[]): string => {
   return '';
 };
 
-const resolveCatalogImageUrl = (value: unknown): string => {
+export const resolveAssetUrl = (value: unknown): string => {
   const raw = readString(value);
   if (!raw) return '';
   if (/^(data:|blob:)/i.test(raw)) return raw;
   if (/^[a-z][a-z0-9+.-]*:\/\//i.test(raw)) {
-    // Keep media links pinned to current API base so old/private hosts do not break images.
-    if (STORE_API_BASE_URL) {
-      try {
-        const parsed = new URL(raw);
-        const normalizedMediaPath = parsed.pathname.startsWith('/media/')
-          ? `/shop${parsed.pathname}`
-          : parsed.pathname;
-        if (normalizedMediaPath.startsWith('/shop/media/')) {
-          return `${STORE_API_BASE_URL}${normalizedMediaPath}${parsed.search || ''}`;
-        }
-      } catch {
-        // Keep original URL if parsing fails.
+    try {
+      const parsed = new URL(raw);
+      let pathname = parsed.pathname || '';
+
+      if (pathname.startsWith('/media/')) {
+        pathname = `/shop${pathname}`;
       }
+
+      // Keep media links pinned to current API base so old/private hosts do not break images.
+      if (pathname.startsWith('/shop/media/')) {
+        return STORE_API_BASE_URL
+          ? `${STORE_API_BASE_URL}${pathname}${parsed.search || ''}`
+          : `${pathname}${parsed.search || ''}`;
+      }
+
+      const host = parsed.hostname.toLowerCase();
+      if (host === 'media.discordapp.net' || host === 'cdn.discordapp.com') {
+        // Signed media.discordapp.net links can expire; normalize to durable CDN URL.
+        const normalized = new URL(parsed.toString());
+        normalized.hostname = 'cdn.discordapp.com';
+        const allowedParams = new Set(['size', 'quality', 'format', 'width', 'height']);
+        const keepEntries: Array<[string, string]> = [];
+        for (const [key, itemValue] of normalized.searchParams.entries()) {
+          if (allowedParams.has(key.toLowerCase())) {
+            keepEntries.push([key, itemValue]);
+          }
+        }
+        normalized.search = '';
+        for (const [key, itemValue] of keepEntries) {
+          normalized.searchParams.append(key, itemValue);
+        }
+        return normalized.toString();
+      }
+    } catch {
+      // Keep original URL if parsing fails.
     }
     return raw;
   }
@@ -151,6 +173,8 @@ const resolveCatalogImageUrl = (value: unknown): string => {
 
   return raw;
 };
+
+const resolveCatalogImageUrl = (value: unknown): string => resolveAssetUrl(value);
 
 const normalizeTier = (tier: ProductTier & { original_price?: number } & Record<string, unknown>): ProductTier => ({
   ...tier,

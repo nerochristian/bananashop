@@ -10,6 +10,12 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ cartCount, onCartClick, onAdminClick, onLogoClick }) => {
+  const [logoFailed, setLogoFailed] = React.useState(false);
+
+  React.useEffect(() => {
+    setLogoFailed(false);
+  }, [BRAND_CONFIG.assets.logoUrl]);
+
   const openExternal = (url: string) => {
     if (!url || url === '#') return;
     window.open(url, '_blank', 'noopener,noreferrer');
@@ -25,11 +31,12 @@ export const Navbar: React.FC<NavbarProps> = ({ cartCount, onCartClick, onAdminC
           onClick={onLogoClick}
           aria-label="Home"
         >
-          {BRAND_CONFIG.assets.logoUrl ? (
+          {BRAND_CONFIG.assets.logoUrl && !logoFailed ? (
             <img
               src={BRAND_CONFIG.assets.logoUrl}
               alt={`${BRAND_CONFIG.identity.storeName} logo`}
               className="h-12 w-12 object-contain"
+              onError={() => setLogoFailed(true)}
             />
           ) : (
             <span className="text-xl font-black text-white">RK</span>

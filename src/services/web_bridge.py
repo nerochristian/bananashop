@@ -3641,9 +3641,9 @@ class WebsiteBridgeServer:
 
     def _extract_branding_from_settings(self, settings: dict[str, Any]) -> dict[str, str]:
         store_name = str(settings.get("storeName") or os.getenv("BRAND_NAME") or "Roblox Keys").strip() or "Roblox Keys"
-        logo_url = str(settings.get("logoUrl") or self.brand_logo_url or "").strip()
-        banner_url = str(settings.get("bannerUrl") or self.brand_banner_url or "").strip()
-        favicon_url = str(settings.get("faviconUrl") or logo_url or self.brand_favicon_url or "").strip()
+        logo_url = self._normalize_asset_url(settings.get("logoUrl") or self.brand_logo_url or "")
+        banner_url = self._normalize_asset_url(settings.get("bannerUrl") or self.brand_banner_url or "")
+        favicon_url = self._normalize_asset_url(settings.get("faviconUrl") or logo_url or self.brand_favicon_url or "")
         return {
             "storeName": store_name,
             "logoUrl": logo_url,
@@ -4453,6 +4453,53 @@ class WebsiteBridgeServer:
             public["tiers"] = public_tiers
         return public
 
+    def _normalize_asset_url(self, value: Any) -> str:
+        raw = str(value or "").strip()
+        if not raw:
+            return ""
+        if raw.lower().startswith(("data:", "blob:")):
+            return raw
+        if re.match(r"^img-[a-z0-9-]+$", raw, re.IGNORECASE):
+            return f"/shop/media/{raw}"
+        if raw.startswith("/media/"):
+            return f"/shop{raw}"
+        if raw.startswith("/"):
+            return raw
+
+        parsed = urlparse(raw)
+        if not parsed.scheme or not parsed.netloc:
+            return raw
+
+        path = str(parsed.path or "").strip() or "/"
+        query_pairs = parse_qsl(parsed.query, keep_blank_values=True)
+        host = str(parsed.netloc or "").strip().lower()
+
+        if path.startswith("/media/"):
+            path = f"/shop{path}"
+        if path.startswith("/shop/media/"):
+            query_text = urlencode(query_pairs, doseq=True) if query_pairs else ""
+            return f"{path}{('?' + query_text) if query_text else ''}"
+
+        if host in {"media.discordapp.net", "cdn.discordapp.com"}:
+            normalized_host = "cdn.discordapp.com"
+            filtered_query: list[tuple[str, str]] = []
+            for key, item_value in query_pairs:
+                lowered = str(key).strip().lower()
+                if lowered in {"size", "quality", "format", "width", "height"}:
+                    filtered_query.append((key, item_value))
+            return urlunparse(
+                (
+                    parsed.scheme or "https",
+                    normalized_host,
+                    path,
+                    "",
+                    urlencode(filtered_query, doseq=True) if filtered_query else "",
+                    "",
+                )
+            )
+
+        return raw
+
     def _normalize_tier(self, tier: dict[str, Any]) -> dict[str, Any]:
         inventory = tier.get("inventory", [])
         if not isinstance(inventory, list):
@@ -4465,6 +4512,7 @@ class WebsiteBridgeServer:
             or tier.get("thumbnail")
             or ""
         ).strip()
+        image_value = self._normalize_asset_url(image_value)
         return {
             "id": str(tier.get("id", "")).strip(),
             "name": str(tier.get("name", "")).strip(),
@@ -4552,6 +4600,8 @@ class WebsiteBridgeServer:
             or product.get("cover_image")
             or ""
         ).strip()
+        image_value = self._normalize_asset_url(image_value)
+        banner_image_value = self._normalize_asset_url(banner_image_value)
 
         return {
             "id": str(product.get("id", "")).strip(),
