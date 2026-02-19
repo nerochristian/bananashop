@@ -135,6 +135,17 @@ export const Checkout: React.FC<CheckoutProps> = ({ isOpen, onClose, items, curr
       } catch (purchaseError) {
         console.error('Checkout failed:', purchaseError);
         const errorText = purchaseError instanceof Error ? purchaseError.message : 'Checkout failed.';
+        const lowered = String(errorText || '').toLowerCase();
+        const isUnauthorized = lowered.includes('(401)') || lowered.includes('401') || lowered.includes('unauthorized');
+        if (isUnauthorized) {
+          ShopApiService.clearSessionToken();
+          try { localStorage.removeItem('robloxkeys.session'); } catch { }
+          setError('Session expired. Redirecting to sign in...');
+          window.setTimeout(() => {
+            window.location.href = '/auth';
+          }, 700);
+          return;
+        }
         setError(errorText);
         setStep('payment');
       }
