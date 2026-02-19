@@ -12,6 +12,7 @@ interface AuthProps {
 const JUST_SIGNED_IN_KEY = 'robloxkeys.just_signed_in';
 
 export const Auth: React.FC<AuthProps> = ({ onAuthComplete, onBack }) => {
+  const [logoFailed, setLogoFailed] = useState(false);
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -27,6 +28,10 @@ export const Auth: React.FC<AuthProps> = ({ onAuthComplete, onBack }) => {
     setOtpCode('');
     setOtpNotice('');
   };
+
+  React.useEffect(() => {
+    setLogoFailed(false);
+  }, [BRAND_CONFIG.assets.logoUrl]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,12 +102,13 @@ export const Auth: React.FC<AuthProps> = ({ onAuthComplete, onBack }) => {
         </div>
 
         <div className="relative mb-10 text-center">
-          <div className="mx-auto mb-6 flex h-20 w-20 rotate-3 items-center justify-center rounded-2xl bg-[#facc15] shadow-xl shadow-yellow-400/20">
-            {BRAND_CONFIG.assets.logoUrl ? (
+          <div className="mx-auto mb-6 flex h-20 w-20 rotate-3 items-center justify-center overflow-hidden rounded-2xl bg-[#facc15] shadow-xl shadow-yellow-400/20">
+            {BRAND_CONFIG.assets.logoUrl && !logoFailed ? (
               <img
                 src={BRAND_CONFIG.assets.logoUrl}
                 alt={`${BRAND_CONFIG.identity.storeName} logo`}
-                className="h-14 w-14 rounded object-contain"
+                className="h-full w-full object-cover"
+                onError={() => setLogoFailed(true)}
               />
             ) : (
               <LayoutGrid className="h-10 w-10 text-black" strokeWidth={3} />

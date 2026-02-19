@@ -465,6 +465,37 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
     setMessage('Tier image removed.');
   };
 
+  const uploadSettingsImage = async (file: File, target: 'logoUrl' | 'bannerUrl' | 'faviconUrl') => {
+    if (!file) return;
+    if (file.size <= 0) {
+      setMessage('Selected image is empty.');
+      return;
+    }
+    const fieldKey = `settings-${target}`;
+    setUploadingField(fieldKey);
+    try {
+      const uploaded = await ShopApiService.uploadImage(file);
+      setSettings((prev) => ({ ...prev, [target]: uploaded.url }));
+      setMessage(`Uploaded ${file.name}.`);
+    } catch (error) {
+      if (handleAuthError(error)) return;
+      console.error('Settings image upload failed.', error);
+      setMessage(error instanceof Error ? error.message : 'Failed to upload settings image.');
+    } finally {
+      setUploadingField('');
+    }
+  };
+
+  const clearSettingsImageField = (target: 'logoUrl' | 'bannerUrl' | 'faviconUrl') => {
+    setSettings((prev) => ({ ...prev, [target]: '' }));
+    const labels: Record<'logoUrl' | 'bannerUrl' | 'faviconUrl', string> = {
+      logoUrl: 'Logo',
+      bannerUrl: 'Banner',
+      faviconUrl: 'Favicon',
+    };
+    setMessage(`${labels[target]} image removed.`);
+  };
+
   const saveProduct = (e: React.FormEvent) => {
     e.preventDefault();
     const normalizedTiers = tierDrafts
@@ -1467,24 +1498,99 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
           {tab === 'settings' && (
             <div className={cardClass + ' max-w-4xl space-y-3'}>
               <input value={settings.storeName} onChange={(e) => setSettings({ ...settings, storeName: e.target.value })} className={fieldClass} placeholder="Store name" />
-              <input
-                value={settings.logoUrl || ''}
-                onChange={(e) => setSettings({ ...settings, logoUrl: e.target.value })}
-                className={fieldClass}
-                placeholder="Logo URL (used on website + bot panels)"
-              />
-              <input
-                value={settings.bannerUrl || ''}
-                onChange={(e) => setSettings({ ...settings, bannerUrl: e.target.value })}
-                className={fieldClass}
-                placeholder="Banner URL (optional)"
-              />
-              <input
-                value={settings.faviconUrl || ''}
-                onChange={(e) => setSettings({ ...settings, faviconUrl: e.target.value })}
-                className={fieldClass}
-                placeholder="Favicon URL (optional)"
-              />
+              <div className="space-y-2">
+                <input
+                  value={settings.logoUrl || ''}
+                  onChange={(e) => setSettings({ ...settings, logoUrl: e.target.value })}
+                  className={fieldClass}
+                  placeholder="Logo URL (used on website + bot panels)"
+                />
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <label className={`${uploadButtonClass} flex cursor-pointer items-center justify-center`}>
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml,image/x-icon,image/vnd.microsoft.icon"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) void uploadSettingsImage(file, 'logoUrl');
+                        e.currentTarget.value = '';
+                      }}
+                    />
+                    {uploadingField === 'settings-logoUrl' ? 'Uploading...' : 'Upload Logo'}
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => clearSettingsImageField('logoUrl')}
+                    disabled={!String(settings.logoUrl || '').trim()}
+                    className={removeButtonClass}
+                  >
+                    Remove Logo
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <input
+                  value={settings.bannerUrl || ''}
+                  onChange={(e) => setSettings({ ...settings, bannerUrl: e.target.value })}
+                  className={fieldClass}
+                  placeholder="Banner URL (optional)"
+                />
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <label className={`${uploadButtonClass} flex cursor-pointer items-center justify-center`}>
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml,image/x-icon,image/vnd.microsoft.icon"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) void uploadSettingsImage(file, 'bannerUrl');
+                        e.currentTarget.value = '';
+                      }}
+                    />
+                    {uploadingField === 'settings-bannerUrl' ? 'Uploading...' : 'Upload Banner'}
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => clearSettingsImageField('bannerUrl')}
+                    disabled={!String(settings.bannerUrl || '').trim()}
+                    className={removeButtonClass}
+                  >
+                    Remove Banner
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <input
+                  value={settings.faviconUrl || ''}
+                  onChange={(e) => setSettings({ ...settings, faviconUrl: e.target.value })}
+                  className={fieldClass}
+                  placeholder="Favicon URL (optional)"
+                />
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <label className={`${uploadButtonClass} flex cursor-pointer items-center justify-center`}>
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml,image/x-icon,image/vnd.microsoft.icon"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) void uploadSettingsImage(file, 'faviconUrl');
+                        e.currentTarget.value = '';
+                      }}
+                    />
+                    {uploadingField === 'settings-faviconUrl' ? 'Uploading...' : 'Upload Favicon'}
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => clearSettingsImageField('faviconUrl')}
+                    disabled={!String(settings.faviconUrl || '').trim()}
+                    className={removeButtonClass}
+                  >
+                    Remove Favicon
+                  </button>
+                </div>
+              </div>
               <input value={settings.currency} onChange={(e) => setSettings({ ...settings, currency: e.target.value })} className={fieldClass} placeholder="Currency" />
               <input value={settings.paypalEmail} onChange={(e) => setSettings({ ...settings, paypalEmail: e.target.value })} className={fieldClass} placeholder="PayPal email or paypal.me link" />
               <input value={settings.stripeKey} onChange={(e) => setSettings({ ...settings, stripeKey: e.target.value })} className={fieldClass} placeholder="Stripe key" />

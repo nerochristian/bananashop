@@ -3,6 +3,7 @@ import asyncio
 import html
 import os
 import re
+import time
 import fnmatch
 import json
 import base64
@@ -194,6 +195,10 @@ class WebsiteBridgeServer:
         self._rate_limit_general = max(1, self._to_int(os.getenv("RATE_LIMIT_GENERAL_PER_MIN"), default=60) or 60)
         self._rate_buckets: dict[str, list[float]] = defaultdict(list)
         self._rate_purge_counter = 0
+        self.slow_request_warn_ms = max(
+            100,
+            self._to_int(os.getenv("SLOW_REQUEST_WARN_MS"), default=1200) or 1200,
+        )
 
         # --- Response Cache ---
         self._cache: dict[str, tuple[Any, float]] = {}
@@ -210,6 +215,7 @@ class WebsiteBridgeServer:
         self.app = web.Application(
             middlewares=[
                 self._error_middleware,
+                self._request_timing_middleware,
                 self._security_headers_middleware,
                 self._rate_limit_middleware,
                 self._cors_middleware,
@@ -288,6 +294,21 @@ class WebsiteBridgeServer:
             "object-src 'none'; "
             "base-uri 'self'"
         )
+        return response
+
+    @web.middleware
+    async def _request_timing_middleware(self, request: web.Request, handler):
+        started_at = time.perf_counter()
+        response = await handler(request)
+        elapsed_ms = (time.perf_counter() - started_at) * 1000.0
+        if elapsed_ms >= float(self.slow_request_warn_ms):
+            logger.warning(
+                "Slow request: method=%s path=%s status=%s elapsed_ms=%.1f",
+                request.method,
+                request.path_qs,
+                getattr(response, "status", "unknown"),
+                elapsed_ms,
+            )
         return response
 
     def _get_client_ip(self, request: web.Request) -> str:

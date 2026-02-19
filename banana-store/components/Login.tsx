@@ -8,6 +8,7 @@ interface LoginProps {
 }
 
 export const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
+  const [logoFailed, setLogoFailed] = useState(false);
   const [password, setPassword] = useState('');
   const [error, setError] = useState(false);
 
@@ -19,6 +20,10 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
       setError(true);
     }
   };
+
+  React.useEffect(() => {
+    setLogoFailed(false);
+  }, [BRAND_CONFIG.assets.logoUrl]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#050505] px-4 relative overflow-hidden">
@@ -35,12 +40,13 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
 
       <div className="max-w-md w-full bg-[#0a0a0a] border border-white/5 rounded-[40px] p-12 shadow-2xl relative z-10">
         <div className="text-center mb-10">
-          <div className="w-16 h-16 bg-[#facc15] rounded-2xl mx-auto flex items-center justify-center mb-6 rotate-6 shadow-xl shadow-yellow-400/20">
-            {BRAND_CONFIG.assets.logoUrl ? (
+          <div className="w-16 h-16 bg-[#facc15] rounded-2xl mx-auto flex items-center justify-center mb-6 rotate-6 overflow-hidden shadow-xl shadow-yellow-400/20">
+            {BRAND_CONFIG.assets.logoUrl && !logoFailed ? (
               <img
                 src={BRAND_CONFIG.assets.logoUrl}
                 alt={`${BRAND_CONFIG.identity.storeName} logo`}
-                className="w-8 h-8 rounded object-cover"
+                className="h-full w-full object-cover"
+                onError={() => setLogoFailed(true)}
               />
             ) : (
               <LayoutGrid className="w-8 h-8 text-black" strokeWidth={3} />

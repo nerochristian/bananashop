@@ -7,7 +7,21 @@ interface BridgeResponse {
   message?: string;
 }
 
-const STORE_API_BASE_URL = ((import.meta.env.VITE_STORE_API_URL as string | undefined) || '').trim().replace(/\/$/, '');
+const DEFAULT_PUBLIC_STORE_API_URL = 'https://robloxkeys-production.up.railway.app';
+
+const resolveStoreApiBaseUrl = (): string => {
+  const configured = ((import.meta.env.VITE_STORE_API_URL as string | undefined) || '').trim().replace(/\/$/, '');
+  if (configured) return configured;
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname.toLowerCase();
+    if (host === 'robloxkeys.store' || host === 'www.robloxkeys.store') {
+      return DEFAULT_PUBLIC_STORE_API_URL;
+    }
+  }
+  return '';
+};
+
+const STORE_API_BASE_URL = resolveStoreApiBaseUrl();
 const STORE_API_PREFIX = ((import.meta.env.VITE_STORE_API_PREFIX as string | undefined) || '/shop').trim() || '/shop';
 const STORE_API_TIMEOUT_MS = Number(import.meta.env.VITE_STORE_API_TIMEOUT_MS || 10000);
 

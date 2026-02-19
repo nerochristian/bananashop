@@ -43,15 +43,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onView }) => 
   const badgeLabel = (product.cardBadgeLabel || (product.type === ServiceType.BUNDLE ? 'BUNDLE' : 'ACCOUNT')).trim();
   const fallbackImage = React.useMemo(() => buildInlineFallback(product.name), [product.name]);
   const imageCandidates = React.useMemo(() => {
+    const tierImages = (product.tiers || []).map((tier) => tier.image);
     const items = [
+      // For tiered products, prefer tier artwork (usually the proper icon/logo).
+      ...(isTiered ? tierImages : []),
       product.image,
-      ...(product.tiers || []).map((tier) => tier.image),
-      product.bannerImage,
+      ...(isTiered ? [] : tierImages),
+      // Intentionally do NOT use bannerImage as a card-icon fallback.
+      // Banner assets are wide and look wrong inside the circular logo frame.
     ]
       .map((value) => String(value || '').trim())
       .filter(Boolean);
     return Array.from(new Set(items));
-  }, [product.image, product.bannerImage, product.tiers]);
+  }, [isTiered, product.image, product.tiers]);
   const [imageCandidateIndex, setImageCandidateIndex] = React.useState(0);
 
   React.useEffect(() => {
