@@ -6,9 +6,10 @@ interface ProductListProps {
   products: Product[];
   onView: (product: Product) => void;
   onBuyNow: (product: Product, quantity?: number) => void;
+  themeBlend?: number;
 }
 
-export const ProductList: React.FC<ProductListProps> = ({ products, onView, onBuyNow }) => {
+export const ProductList: React.FC<ProductListProps> = ({ products, onView, onBuyNow, themeBlend = 0.62 }) => {
   return (
     <section id="products" className="px-4 pb-24 sm:px-6 sm:pb-40">
       <div className="max-w-7xl mx-auto">
@@ -19,6 +20,7 @@ export const ProductList: React.FC<ProductListProps> = ({ products, onView, onBu
                 product={product} 
                 onView={onView}
                 onBuyNow={onBuyNow}
+                themeBlend={themeBlend}
               />
             </div>
           ))}

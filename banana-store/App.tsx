@@ -42,6 +42,7 @@ const normalizePath = (pathname: string): string => {
 };
 
 const SESSION_KEY = 'robloxkeys.session';
+const STORE_THEME_KEY = 'robloxkeys.store_theme_blend';
 
 const readSession = (): User | null => {
   try {
@@ -117,6 +118,7 @@ export default function App() {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [tierPanelProduct, setTierPanelProduct] = useState<Product | null>(null);
   const [apiOnline, setApiOnline] = useState<boolean | null>(null);
+  const [storeThemeBlend, setStoreThemeBlend] = useState<number>(62);
   const [adminSettings, setAdminSettings] = useState<AdminSettings>({
     storeName: BRAND_CONFIG.identity.storeName,
     logoUrl: BRAND_CONFIG.assets.logoUrl,
@@ -351,6 +353,19 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const parsed = Number(localStorage.getItem(STORE_THEME_KEY));
+    if (!Number.isFinite(parsed)) {
+      setStoreThemeBlend(62);
+      return;
+    }
+    setStoreThemeBlend(Math.max(0, Math.min(100, Math.round(parsed))));
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(STORE_THEME_KEY, String(Math.max(0, Math.min(100, Math.round(storeThemeBlend)))));
+  }, [storeThemeBlend]);
+
+  useEffect(() => {
     const onPopState = () => applyRoute(window.location.pathname, products, user, window.location.search);
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
@@ -500,6 +515,7 @@ export default function App() {
   };
 
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const storeThemeRatio = Math.max(0, Math.min(1, storeThemeBlend / 100));
 
   // Authentication Required View
   if (view === 'auth') {
@@ -527,6 +543,18 @@ export default function App() {
 
   return (
     <div className="min-h-screen relative z-10 transition-opacity duration-500">
+      <div
+        className="pointer-events-none fixed inset-0 z-0 transition-opacity duration-700"
+        style={{
+          opacity: view === 'store' || view === 'product-detail' || view === 'dashboard' ? 0.18 + storeThemeRatio * 0.62 : 0,
+          background: `
+            radial-gradient(circle at 14% 22%, rgba(250, 204, 21, ${0.05 + storeThemeRatio * 0.34}) 0%, transparent 42%),
+            radial-gradient(circle at 86% 78%, rgba(250, 204, 21, ${0.03 + storeThemeRatio * 0.28}) 0%, transparent 48%),
+            linear-gradient(135deg, rgba(250, 204, 21, ${0.02 + storeThemeRatio * 0.16}) 0%, rgba(0, 0, 0, 0) 58%)
+          `,
+        }}
+      />
+      <div className="relative z-10">
       <Navbar
         cartCount={cartCount}
         onCartClick={() => setIsCartOpen(true)}
@@ -554,7 +582,7 @@ export default function App() {
               </div>
             )}
             <Hero />
-            <ProductList products={products} onView={handleViewProduct} onBuyNow={handleBuyNow} />
+            <ProductList products={products} onView={handleViewProduct} onBuyNow={handleBuyNow} themeBlend={storeThemeRatio} />
           </div>
         )}
         {view === 'product-detail' && selectedProduct && (
@@ -575,6 +603,8 @@ export default function App() {
               onLogout={handleLogout}
               onBrowse={() => pushRoute('/', products, user)}
               onUserUpdate={handleUserUpdate}
+              themeBlend={storeThemeBlend}
+              onThemeBlendChange={setStoreThemeBlend}
             />
           </div>
         )}
@@ -631,6 +661,7 @@ export default function App() {
       />
 
       <ChatBot products={products} />
+      </div>
     </div>
   );
 }

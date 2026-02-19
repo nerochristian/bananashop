@@ -6,9 +6,10 @@ interface ProductCardProps {
   product: Product;
   onView: (product: Product) => void;
   onBuyNow: (product: Product, quantity?: number) => void;
+  themeBlend?: number;
 }
 
-export const ProductCard: React.FC<ProductCardProps> = ({ product, onView }) => {
+export const ProductCard: React.FC<ProductCardProps> = ({ product, onView, themeBlend = 0.62 }) => {
   const buildInlineFallback = (name: string) => {
     const initials = String(name || 'RK')
       .split(/\s+/)
@@ -62,17 +63,34 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onView }) => 
   const currentImage = imageCandidates[imageCandidateIndex] || fallbackImage;
   
   const getHeaderGradientStyle = (type: ServiceType): React.CSSProperties => {
+    const blend = Math.max(0, Math.min(1, Number(themeBlend) || 0));
+    const variantByType: Record<ServiceType, [number, number, number]> = {
+      [ServiceType.NETFLIX]: [253, 224, 71],
+      [ServiceType.DISNEY]: [252, 211, 77],
+      [ServiceType.CRUNCHYROLL]: [250, 204, 21],
+      [ServiceType.BUNDLE]: [250, 204, 21],
+      [ServiceType.OTHER]: [250, 204, 21],
+    };
+    const [r, g, b] = variantByType[type] || variantByType[ServiceType.OTHER];
+    const startR = Math.round(r * blend);
+    const startG = Math.round(g * blend);
+    const startB = Math.round(b * blend);
+    const midR = Math.round(r * blend * 0.62);
+    const midG = Math.round(g * blend * 0.62);
+    const midB = Math.round(b * blend * 0.62);
+    const startA = 0.94;
+    const midA = 0.38 + blend * 0.18;
+    const endA = 0.98;
+
     switch (type) {
       case ServiceType.NETFLIX:
-        return { background: 'linear-gradient(135deg, rgba(253,224,71,0.72) 0%, rgba(161,98,7,0.88) 100%)' };
       case ServiceType.DISNEY:
-        return { background: 'linear-gradient(135deg, rgba(252,211,77,0.72) 0%, rgba(120,53,15,0.9) 100%)' };
       case ServiceType.CRUNCHYROLL:
-        return { background: 'linear-gradient(135deg, rgba(250,204,21,0.74) 0%, rgba(146,64,14,0.9) 100%)' };
       case ServiceType.BUNDLE:
-        return { background: 'linear-gradient(135deg, rgba(250,204,21,0.8) 0%, rgba(202,138,4,0.9) 100%)' };
       default:
-        return { background: 'linear-gradient(135deg, rgba(250,204,21,0.78) 0%, rgba(39,39,42,0.92) 100%)' };
+        return {
+          background: `linear-gradient(135deg, rgba(${startR},${startG},${startB},${startA}) 0%, rgba(${midR},${midG},${midB},${midA}) 48%, rgba(8,8,8,${endA}) 100%)`,
+        };
     }
   };
 

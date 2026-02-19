@@ -8,6 +8,8 @@ interface UserDashboardProps {
   onLogout: () => void;
   onBrowse: () => void;
   onUserUpdate: (user: User) => void;
+  themeBlend: number;
+  onThemeBlendChange: (value: number) => void;
 }
 
 const JUST_SIGNED_IN_KEY = 'robloxkeys.just_signed_in';
@@ -69,7 +71,7 @@ const DecryptingInput = ({ value }: { value?: string }) => {
   );
 };
 
-export const UserDashboard: React.FC<UserDashboardProps> = ({ user, onLogout, onBrowse, onUserUpdate }) => {
+export const UserDashboard: React.FC<UserDashboardProps> = ({ user, onLogout, onBrowse, onUserUpdate, themeBlend, onThemeBlendChange }) => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [isDiscordConnecting, setIsDiscordConnecting] = useState(false);
   const [isDiscordDisconnecting, setIsDiscordDisconnecting] = useState(false);
@@ -78,6 +80,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ user, onLogout, on
   const [isDiscordStatusOpen, setIsDiscordStatusOpen] = useState(false);
 
   const discordLinked = Boolean((user.discordId || '').trim());
+  const themeRatio = Math.max(0, Math.min(1, Number(themeBlend) / 100));
 
   useEffect(() => {
     let cancelled = false;
@@ -233,6 +236,37 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ user, onLogout, on
           </button>
         </div>
       </header>
+
+      <div className="relative z-10 mb-6">
+        <div className="inline-flex w-full max-w-xl items-center gap-3 rounded-2xl border border-white/10 bg-black/45 px-3 py-3 backdrop-blur-md">
+          <span className="shrink-0 text-[10px] font-black uppercase tracking-[0.18em] text-white/55">Theme</span>
+          <div className="relative h-10 flex-1 overflow-hidden rounded-full border border-white/15 bg-[#090909]">
+            <div className="absolute inset-0 bg-gradient-to-r from-[#050505] via-[#151515] to-[#facc15]/85" />
+            <div
+              className="absolute top-1 h-8 w-12 rounded-full border border-white/30 bg-white/90 shadow-[0_8px_18px_rgba(0,0,0,0.35)] transition-all duration-200"
+              style={{ left: `calc(${themeRatio * 100}% - 24px)` }}
+            />
+            <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-[9px] font-black uppercase tracking-[0.14em] text-white/75">
+              Black
+            </div>
+            <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[9px] font-black uppercase tracking-[0.14em] text-[#fef08a]">
+              Yellow
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={themeBlend}
+              onChange={(event) => onThemeBlendChange(Number(event.target.value))}
+              className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+              aria-label="Vault theme slider"
+            />
+          </div>
+          <span className="w-16 shrink-0 text-right text-[10px] font-black uppercase tracking-[0.16em] text-[#facc15]">
+            {Math.max(0, Math.min(100, Math.round(themeBlend)))}%
+          </span>
+        </div>
+      </div>
 
       {discordActionError && (
         <p className="relative z-10 mb-6 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-[10px] font-black uppercase tracking-wider text-red-300">
