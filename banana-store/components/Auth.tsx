@@ -97,15 +97,15 @@ export const Auth: React.FC<AuthProps> = ({ onAuthComplete, onBack }) => {
         </div>
 
         <div className="relative mb-10 text-center">
-          <div className="mx-auto mb-6 flex h-16 w-16 rotate-6 items-center justify-center rounded-2xl bg-[#facc15] shadow-xl shadow-yellow-400/20">
+          <div className="mx-auto mb-6 flex h-20 w-20 rotate-3 items-center justify-center rounded-2xl bg-[#facc15] shadow-xl shadow-yellow-400/20">
             {BRAND_CONFIG.assets.logoUrl ? (
               <img
                 src={BRAND_CONFIG.assets.logoUrl}
                 alt={`${BRAND_CONFIG.identity.storeName} logo`}
-                className="h-8 w-8 rounded object-cover"
+                className="h-14 w-14 rounded object-contain"
               />
             ) : (
-              <LayoutGrid className="h-8 w-8 text-black" strokeWidth={3} />
+              <LayoutGrid className="h-10 w-10 text-black" strokeWidth={3} />
             )}
           </div>
           <h2 className="text-2xl font-black tracking-tighter text-white sm:text-3xl">
@@ -142,8 +142,10 @@ export const Auth: React.FC<AuthProps> = ({ onAuthComplete, onBack }) => {
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    autoComplete={isLogin ? 'current-password' : 'new-password'}
                     className="w-full rounded-2xl border border-white/5 bg-black px-12 py-4 font-bold text-white outline-none transition-all focus:border-[#facc15]"
-                    placeholder="••••••••"
+                    style={{ fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif' }}
+                    placeholder="Password"
                   />
                 </div>
               </div>

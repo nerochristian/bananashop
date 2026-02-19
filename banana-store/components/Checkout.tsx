@@ -56,7 +56,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ isOpen, onClose, items, curr
       return;
     }
     if (paymentMethod === 'paypal' && !methodAvailability.paypal.enabled) {
-      setError('PayPal is not configured yet.');
+      setError('PayPal is not configured yet. Set PAYPAL_CLIENT_ID/PAYPAL_CLIENT_SECRET, or set PAYPAL_CHECKOUT_URL (or Settings > PayPal email/pay link).');
       setStep('payment');
       return;
     }
@@ -93,8 +93,8 @@ export const Checkout: React.FC<CheckoutProps> = ({ isOpen, onClose, items, curr
           throw new Error('Failed to create payment session.');
         }
 
-        // Card and PayPal both redirect to external checkout pages
-        if (paymentMethod === 'card' || paymentMethod === 'paypal') {
+        // Card always redirects. PayPal redirects only when automated mode is active.
+        if (paymentMethod === 'card' || ((paymentMethod === 'paypal' || paymentMethod === 'crypto') && !payment.manual)) {
           if (!payment.checkoutUrl) {
             throw new Error(`Failed to create ${paymentMethod} payment session.`);
           }
@@ -103,20 +103,8 @@ export const Checkout: React.FC<CheckoutProps> = ({ isOpen, onClose, items, curr
             try { sessionStorage.setItem('pending_payment_token', payment.token); } catch { }
             try { sessionStorage.setItem('pending_payment_method', paymentMethod); } catch { }
           }
-          if ((payment as any).paypalOrderId) {
-            try { sessionStorage.setItem('pending_paypal_order_id', (payment as any).paypalOrderId); } catch { }
-          }
-          window.location.href = payment.checkoutUrl;
-          return;
-        }
-
-        if (paymentMethod === 'crypto' && !payment.manual) {
-          if (!payment.checkoutUrl) {
-            throw new Error('Failed to create OxaPay payment session.');
-          }
-          if (payment.token) {
-            try { sessionStorage.setItem('pending_payment_token', payment.token); } catch { }
-            try { sessionStorage.setItem('pending_payment_method', paymentMethod); } catch { }
+          if (payment.paypalOrderId) {
+            try { sessionStorage.setItem('pending_paypal_order_id', payment.paypalOrderId); } catch { }
           }
           window.location.href = payment.checkoutUrl;
           return;
@@ -126,7 +114,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ isOpen, onClose, items, curr
           window.open(payment.checkoutUrl, '_blank', 'noopener,noreferrer');
         }
 
-        // For manual crypto fallback only
+        // Manual payment fallback (PayPal/crypto): open checkout URL and complete purchase on backend.
         const result = await ShopApiService.buy(order, paymentMethod, true);
         if (!result.ok) {
           throw new Error('Purchase failed.');
@@ -238,15 +226,23 @@ export const Checkout: React.FC<CheckoutProps> = ({ isOpen, onClose, items, curr
             </div>
             {paymentMethod === 'paypal' && (
               <div className="mb-6 rounded-xl border border-blue-500/20 bg-blue-500/10 p-4 text-xs text-blue-200/80">
-                <p className="font-bold mb-1">Manual Transfer Required</p>
-                <p>This will open PayPal in a new tab. Please send the exact amount.</p>
+                <p className="font-bold mb-1">{methodAvailability.paypal.automated ? 'Automated PayPal Checkout' : 'Manual PayPal Checkout'}</p>
+                <p>
+                  {methodAvailability.paypal.automated
+                    ? 'You will be redirected to PayPal and returned automatically after approval.'
+                    : 'This opens your PayPal destination in a new tab before checkout finalizes.'}
+                </p>
               </div>
             )}
             <button onClick={handleCheckout} className="rounded-3xl bg-[#facc15] px-8 py-4 text-xs font-black uppercase tracking-[0.2em] text-black shadow-2xl shadow-yellow-400/20 transition-all hover:bg-yellow-300 active:scale-95 sm:px-16 sm:py-6 sm:tracking-[0.3em]">
               Execute ${total.toFixed(2)} via {paymentMethod}
             </button>
             <p className="mt-4 text-white/40 text-[10px] font-black uppercase tracking-wider">
-              {paymentMethod === 'card' ? 'Card uses Stripe.' : paymentMethod === 'paypal' ? 'Direct secure transfer.' : 'Crypto uses OxaPay verification.'}
+              {paymentMethod === 'card'
+                ? 'Card uses Stripe.'
+                : paymentMethod === 'paypal'
+                  ? (methodAvailability.paypal.automated ? 'PayPal uses API verification.' : 'PayPal uses manual fallback.')
+                  : (methodAvailability.crypto.automated ? 'Crypto uses OxaPay verification.' : 'Crypto uses manual fallback.')}
             </p>
             {error && (
               <p className="mt-6 text-red-400 text-xs font-black uppercase tracking-widest">

@@ -1357,11 +1357,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
           {tab === 'payment_methods' && (
             <div className={cardClass + ' space-y-3'}>
               <div className="rounded-lg border border-[#facc15]/20 bg-[#0a0a0a] p-3 text-xs text-yellow-200/70">
-                Real checkout status is loaded from API environment variables. Set `STRIPE_SECRET_KEY` for card and `OXAPAY_MERCHANT_API_KEY` for automated crypto.
+                Real checkout status is loaded from API configuration. Card: `STRIPE_SECRET_KEY`. PayPal (auto): `PAYPAL_CLIENT_ID` + `PAYPAL_CLIENT_SECRET`. PayPal (manual fallback): `PAYPAL_CHECKOUT_URL` or Settings `PayPal email/pay link`. Crypto auto: `OXAPAY_MERCHANT_API_KEY`.
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div className="rounded-lg bg-white/5 p-3"><div className="text-xs uppercase text-yellow-200/60">Card (Stripe)</div><div className="font-bold">{gatewayMethods.card.enabled ? 'Configured' : 'Not configured'}</div></div>
-                <div className="rounded-lg bg-white/5 p-3"><div className="text-xs uppercase text-yellow-200/60">PayPal</div><div className="font-bold">{gatewayMethods.paypal.enabled ? 'Configured (manual)' : 'Not configured'}</div></div>
+                <div className="rounded-lg bg-white/5 p-3"><div className="text-xs uppercase text-yellow-200/60">PayPal</div><div className="font-bold">{gatewayMethods.paypal.enabled ? (gatewayMethods.paypal.automated ? 'Configured (API auto)' : 'Configured (manual)') : 'Not configured'}</div></div>
                 <div className="rounded-lg bg-white/5 p-3"><div className="text-xs uppercase text-yellow-200/60">Crypto</div><div className="font-bold">{gatewayMethods.crypto.enabled ? (gatewayMethods.crypto.automated ? 'Configured (OxaPay auto)' : 'Configured (manual)') : 'Not configured'}</div></div>
               </div>
               {paymentMethods.map((method) => (

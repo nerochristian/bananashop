@@ -718,7 +718,7 @@ export const ShopApiService = {
     };
   },
 
-  async createPayment(order: Order, paymentMethod: string, successUrl: string, cancelUrl: string): Promise<{ ok: boolean; checkoutUrl?: string; token?: string; sessionId?: string; trackId?: string; manual?: boolean }> {
+  async createPayment(order: Order, paymentMethod: string, successUrl: string, cancelUrl: string): Promise<{ ok: boolean; checkoutUrl?: string; token?: string; sessionId?: string; trackId?: string; paypalOrderId?: string; manual?: boolean }> {
     const response = await withTimeout(resolvePath('/payments/create'), {
       method: 'POST',
       headers: buildHeaders(),
@@ -734,7 +734,7 @@ export const ShopApiService = {
       }
       throw new Error(message);
     }
-    return response.json() as Promise<{ ok: boolean; checkoutUrl?: string; token?: string; sessionId?: string; trackId?: string; manual?: boolean }>;
+    return response.json() as Promise<{ ok: boolean; checkoutUrl?: string; token?: string; sessionId?: string; trackId?: string; paypalOrderId?: string; manual?: boolean }>;
   },
 
   async confirmPayment(token: string, sessionId: string, paymentMethod: string = 'card', paypalOrderId: string = ''): Promise<{ ok: boolean; order?: Order; products?: Product[] }> {
