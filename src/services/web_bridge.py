@@ -61,13 +61,22 @@ class WebsiteBridgeServer:
         self.auth_session_ttl_seconds = max(
             300, self._to_int(os.getenv("AUTH_SESSION_TTL_SECONDS"), default=86400) or 86400
         )
+        self.auth_session_secret_file = self._resolve_auth_session_secret_file()
         self.auth_session_secret = (os.getenv("AUTH_SESSION_SECRET") or "").strip()
         if not self.auth_session_secret:
-            self.auth_session_secret = secrets.token_urlsafe(48)
-            logger.warning(
-                "AUTH_SESSION_SECRET not set; using ephemeral in-memory secret."
-                " Persistent sessions will be invalidated on restart. Set AUTH_SESSION_SECRET."
-            )
+            self.auth_session_secret = self._load_or_create_auth_session_secret(self.auth_session_secret_file)
+            if self.auth_session_secret:
+                logger.warning(
+                    "AUTH_SESSION_SECRET not set; using persisted secret at %s."
+                    " Set AUTH_SESSION_SECRET to manage rotation explicitly.",
+                    self.auth_session_secret_file,
+                )
+            else:
+                self.auth_session_secret = secrets.token_urlsafe(48)
+                logger.warning(
+                    "AUTH_SESSION_SECRET not set and could not persist fallback secret."
+                    " Using ephemeral in-memory secret; sessions will be invalidated on restart."
+                )
         bootstrap_password = self.admin_password if self.admin_password_configured else secrets.token_urlsafe(24)
         self.bootstrap_admin_password_hash = self._hash_password(bootstrap_password)
         self.login_otp_sessions: dict[str, dict[str, Any]] = {}
@@ -4330,6 +4339,31 @@ class WebsiteBridgeServer:
         if include_prefix:
             return f"${amount:.2f}"
         return f"{amount:.2f}"
+
+    def _resolve_auth_session_secret_file(self) -> Path:
+        configured_path = (os.getenv("AUTH_SESSION_SECRET_FILE") or "").strip()
+        if configured_path:
+            return Path(configured_path).expanduser()
+        data_dir = Path(os.getenv("SHOP_DATA_DIR", "data"))
+        return data_dir / "auth_session_secret.txt"
+
+    def _load_or_create_auth_session_secret(self, path: Path) -> str:
+        try:
+            if path.exists():
+                raw_value = path.read_text(encoding="utf-8").strip()
+                if raw_value:
+                    return raw_value
+        except Exception as exc:
+            logger.warning(f"Failed to read auth session secret file {path}: {exc}")
+
+        generated = secrets.token_urlsafe(48)
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(generated, encoding="utf-8")
+            return generated
+        except Exception as exc:
+            logger.warning(f"Failed to persist auth session secret to {path}: {exc}")
+            return ""
 
     def _env_bool(self, key: str, default: bool = False) -> bool:
         value = os.getenv(key)
