@@ -354,31 +354,7 @@ class WebsiteBridgeServer:
         return await handler(request)
 
     async def _verify_turnstile(self, request: web.Request) -> bool:
-        if not self.cf_turnstile_secret_key:
-            return True
-        token = request.headers.get("cf-turnstile-response", "").strip()
-        if not token:
-            return False
-        ip = self._get_client_ip(request)
-        try:
-            async with ClientSession() as session:
-                async with session.post(
-                    "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-                    data={
-                        "secret": self.cf_turnstile_secret_key,
-                        "response": token,
-                        "remoteip": ip,
-                    },
-                    timeout=ClientTimeout(total=5),
-                ) as resp:
-                    result = await resp.json(content_type=None)
-                    success = bool(result.get("success"))
-                    if not success:
-                        logger.warning(f"Turnstile rejected request from {ip}: {result}")
-                    return success
-        except Exception as exc:
-            logger.warning(f"Turnstile verification failed for {ip}: {exc}")
-            return False
+        return True
     @web.middleware
     async def _cors_middleware(self, request: web.Request, handler):
         response = await handler(request)
