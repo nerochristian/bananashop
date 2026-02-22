@@ -101,20 +101,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onView, theme
       onClick={() => onView(product)}
       className="relative isolate flex h-full w-full flex-col overflow-hidden rounded-3xl border border-white/5 bg-[#0a0a0a]/80 text-left backdrop-blur-md transition-all duration-500 card-glow group md:flex-row"
     >
-      {cardBackground && (
-        <div className="pointer-events-none absolute inset-0 z-0">
-          <img
-            src={cardBackground}
-            alt=""
-            aria-hidden="true"
-            loading="lazy"
-            decoding="async"
-            className="h-full w-full object-cover opacity-[0.16] brightness-[0.72] saturate-115 contrast-105"
-          />
-          <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(5,5,5,0.88)_0%,rgba(6,6,6,0.82)_44%,rgba(5,5,5,0.9)_100%)]" />
-        </div>
-      )}
-
       {/* Featured Badge Overlay */}
       {product.featured && (
         <div className="absolute top-4 right-4 z-10 bg-[#facc15]/90 text-black p-2 rounded-xl shadow-[0_0_20px_rgba(250,204,21,0.35)] animate-pulse">
@@ -159,42 +145,57 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onView, theme
       </div>
 
       {/* Details Section */}
-      <div className="relative z-10 flex flex-1 flex-col p-4 sm:p-6">
-        <div className="mb-4 flex flex-col items-start gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="w-full min-w-0 flex-1">
-            <h3 className="mb-1 truncate text-xl font-black leading-tight tracking-tight text-white transition-colors group-hover:text-[#facc15]">{product.name}</h3>
-            <div className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-widest transition-all ${stockLabelClass}`}>
-              <span className={`h-1.5 w-1.5 rounded-full ${stockDotClass}`}></span>
-              <span>{stockLabel}</span>
+      <div className="relative z-10 flex flex-1 overflow-hidden p-4 sm:p-6">
+        {cardBackground && (
+          <div className="pointer-events-none absolute inset-0 z-0">
+            <img
+              src={cardBackground}
+              alt=""
+              aria-hidden="true"
+              loading="lazy"
+              decoding="async"
+              className="h-full w-full object-cover object-center opacity-[0.24] brightness-[0.8] saturate-120 contrast-105"
+            />
+            <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(6,6,6,0.9)_0%,rgba(6,6,6,0.78)_45%,rgba(5,5,5,0.92)_100%)]" />
+          </div>
+        )}
+        <div className="relative z-10 flex flex-1 flex-col">
+          <div className="mb-4 flex flex-col items-start gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="w-full min-w-0 flex-1">
+              <h3 className="mb-1 truncate text-xl font-black leading-tight tracking-tight text-white transition-colors group-hover:text-[#facc15]">{product.name}</h3>
+              <div className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-widest transition-all ${stockLabelClass}`}>
+                <span className={`h-1.5 w-1.5 rounded-full ${stockDotClass}`}></span>
+                <span>{stockLabel}</span>
+              </div>
+            </div>
+            <div className="w-full text-left sm:ml-4 sm:w-auto sm:text-right">
+               <p className="text-[9px] font-black uppercase tracking-widest text-white/30">{isTiered ? 'Range' : 'Starts at'}</p>
+               <div className="flex items-center gap-1 sm:justify-end">
+                 <div className="w-1 h-1 rounded-full bg-[#facc15]"></div>
+                 <p className="text-lg font-black text-white sm:text-lg">
+                   {isTiered ? `$${minTierPrice.toFixed(2)} - $${maxTierPrice.toFixed(2)}` : `$${product.price.toFixed(2)}`}
+                 </p>
+               </div>
             </div>
           </div>
-          <div className="w-full text-left sm:ml-4 sm:w-auto sm:text-right">
-             <p className="text-[9px] font-black uppercase tracking-widest text-white/30">{isTiered ? 'Range' : 'Starts at'}</p>
-             <div className="flex items-center gap-1 sm:justify-end">
-               <div className="w-1 h-1 rounded-full bg-[#facc15]"></div>
-               <p className="text-lg font-black text-white sm:text-lg">
-                 {isTiered ? `$${minTierPrice.toFixed(2)} - $${maxTierPrice.toFixed(2)}` : `$${product.price.toFixed(2)}`}
-               </p>
+
+          <p className="mb-5 text-[10px] font-bold uppercase tracking-widest text-white/40 sm:mb-6">{product.duration} Access</p>
+
+          {/* Status Pills */}
+          <div className="mb-6 flex flex-wrap items-center gap-2 sm:mb-8">
+             <div className="bg-[#facc15]/10 text-[#facc15] px-3 py-1.5 rounded-lg border border-[#facc15]/20 text-[9px] font-black uppercase tracking-widest group-hover:bg-[#facc15]/20 transition-colors">
+               UNDETECTED
+             </div>
+             <div className="bg-white/5 text-white/60 px-3 py-1.5 rounded-lg border border-white/10 text-[9px] font-black uppercase tracking-widest group-hover:border-white/20 transition-colors">
+               {isOutOfStock ? 'RESTOCKING' : isTiered ? `${product.tiers?.length || 0} TIERS` : '100% SECURE'}
              </div>
           </div>
-        </div>
 
-        <p className="mb-5 text-[10px] font-bold uppercase tracking-widest text-white/40 sm:mb-6">{product.duration} Access</p>
-
-        {/* Status Pills */}
-        <div className="mb-6 flex flex-wrap items-center gap-2 sm:mb-8">
-           <div className="bg-[#facc15]/10 text-[#facc15] px-3 py-1.5 rounded-lg border border-[#facc15]/20 text-[9px] font-black uppercase tracking-widest group-hover:bg-[#facc15]/20 transition-colors">
-             UNDETECTED
-           </div>
-           <div className="bg-white/5 text-white/60 px-3 py-1.5 rounded-lg border border-white/10 text-[9px] font-black uppercase tracking-widest group-hover:border-white/20 transition-colors">
-             {isOutOfStock ? 'RESTOCKING' : isTiered ? `${product.tiers?.length || 0} TIERS` : '100% SECURE'}
-           </div>
-        </div>
-
-        <div className="mt-auto rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2">
-          <p className="text-[10px] font-black uppercase tracking-[0.15em] text-white/70">
-            Click anywhere to open
-          </p>
+          <div className="mt-auto rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2">
+            <p className="text-[10px] font-black uppercase tracking-[0.15em] text-white/70">
+              Click anywhere to open
+            </p>
+          </div>
         </div>
       </div>
     </button>

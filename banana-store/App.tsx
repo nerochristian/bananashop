@@ -416,8 +416,16 @@ export default function App() {
           resolvedSession = sessionState.user;
           setUser(sessionState.user);
           writeSession(sessionState.user);
-        } catch {
-          if (session || ShopApiService.hasSessionToken()) {
+        } catch (sessionError) {
+          const messageText = String(sessionError instanceof Error ? sessionError.message : sessionError || '').toLowerCase();
+          const unauthorized =
+            messageText.includes('(401)') ||
+            messageText.includes('401') ||
+            messageText.includes('(403)') ||
+            messageText.includes('403') ||
+            messageText.includes('unauthorized') ||
+            messageText.includes('forbidden');
+          if (unauthorized && (session || ShopApiService.hasSessionToken())) {
             resolvedSession = null;
             ShopApiService.clearSessionToken();
             writeSession(null);

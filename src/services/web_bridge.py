@@ -78,11 +78,18 @@ class WebsiteBridgeServer:
                     self.auth_session_secret_file,
                 )
             else:
-                self.auth_session_secret = secrets.token_urlsafe(48)
-                logger.warning(
-                    "AUTH_SESSION_SECRET not set and could not persist fallback secret."
-                    " Using ephemeral in-memory secret; sessions will be invalidated on restart."
-                )
+                self.auth_session_secret = self._derive_auth_session_secret_from_env()
+                if self.auth_session_secret:
+                    logger.warning(
+                        "AUTH_SESSION_SECRET not set and secret file unavailable."
+                        " Using deterministic env-derived fallback secret."
+                    )
+                else:
+                    self.auth_session_secret = secrets.token_urlsafe(48)
+                    logger.warning(
+                        "AUTH_SESSION_SECRET not set and could not persist/derive fallback secret."
+                        " Using ephemeral in-memory secret; sessions will be invalidated on restart."
+                    )
         bootstrap_password = self.admin_password if self.admin_password_configured else secrets.token_urlsafe(24)
         self.bootstrap_admin_password_hash = self._hash_password(bootstrap_password)
         self.login_otp_sessions: dict[str, dict[str, Any]] = {}
@@ -553,7 +560,7 @@ class WebsiteBridgeServer:
         raw_token = str(token or "").strip()
         if not raw_token:
             return
-        secure = bool(self.shop_session_cookie_secure and self._is_request_secure(request))
+        secure = bool(self.shop_session_cookie_secure)
         samesite = self._resolve_session_cookie_samesite(request, secure)
         response.set_cookie(
             self.shop_session_cookie_name,
@@ -566,7 +573,7 @@ class WebsiteBridgeServer:
         )
 
     def _clear_shop_session_cookie(self, request: web.Request, response: web.StreamResponse) -> None:
-        secure = bool(self.shop_session_cookie_secure and self._is_request_secure(request))
+        secure = bool(self.shop_session_cookie_secure)
         samesite = self._resolve_session_cookie_samesite(request, secure)
         response.set_cookie(
             self.shop_session_cookie_name,
@@ -4482,6 +4489,23 @@ class WebsiteBridgeServer:
         except Exception as exc:
             logger.warning(f"Failed to persist auth session secret to {path}: {exc}")
             return ""
+
+    def _derive_auth_session_secret_from_env(self) -> str:
+        explicit_seed = (os.getenv("AUTH_SESSION_SECRET_SEED") or "").strip()
+        candidates = [
+            explicit_seed,
+            self.api_key,
+            (os.getenv("DISCORD_TOKEN") or "").strip(),
+            (os.getenv("SUPABASE_DATABASE_URL") or "").strip(),
+            (os.getenv("DATABASE_URL") or "").strip(),
+            (os.getenv("ADMIN_PASSWORD") or "").strip(),
+            self.admin_email,
+        ]
+        seed_material = "|".join(value for value in candidates if value)
+        if not seed_material:
+            return ""
+        digest = hashlib.sha256(seed_material.encode("utf-8")).digest()
+        return self._b64url_encode(digest)
 
     def _env_bool(self, key: str, default: bool = False) -> bool:
         value = os.getenv(key)
