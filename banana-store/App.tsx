@@ -672,16 +672,25 @@ export default function App() {
   return (
     <div className="app-shell min-h-screen relative z-10 transition-opacity duration-500">
       <div
-        className="pointer-events-none fixed inset-0 z-0 transition-opacity duration-700"
+        className="pointer-events-none fixed inset-0 z-0 overflow-hidden transition-opacity duration-700"
         style={{
-          opacity: view === 'store' || view === 'product-detail' || view === 'dashboard' ? 0.18 + storeThemeRatio * 0.62 : 0,
-          background: `
-            radial-gradient(circle at 14% 22%, rgba(250, 204, 21, ${0.05 + storeThemeRatio * 0.34}) 0%, transparent 42%),
-            radial-gradient(circle at 86% 78%, rgba(250, 204, 21, ${0.03 + storeThemeRatio * 0.28}) 0%, transparent 48%),
-            linear-gradient(135deg, rgba(250, 204, 21, ${0.02 + storeThemeRatio * 0.16}) 0%, rgba(0, 0, 0, 0) 58%)
-          `,
+          opacity: view === 'store' || view === 'product-detail' || view === 'dashboard' ? 1 : 0,
         }}
-      />
+      >
+        <div
+          className="absolute inset-0"
+          style={{
+            opacity: 0.24 + storeThemeRatio * 0.5,
+            background: `
+              radial-gradient(circle at 14% 22%, rgba(250, 204, 21, ${0.06 + storeThemeRatio * 0.34}) 0%, transparent 42%),
+              radial-gradient(circle at 86% 78%, rgba(250, 204, 21, ${0.04 + storeThemeRatio * 0.28}) 0%, transparent 48%),
+              linear-gradient(135deg, rgba(250, 204, 21, ${0.03 + storeThemeRatio * 0.16}) 0%, rgba(0, 0, 0, 0) 58%)
+            `,
+          }}
+        />
+        <div className="wave-layer wave-layer-a" style={{ opacity: 0.25 + storeThemeRatio * 0.42 }} />
+        <div className="wave-layer wave-layer-b" style={{ opacity: 0.22 + storeThemeRatio * 0.4 }} />
+      </div>
       {vaultTransition && (
         <div className={`fixed inset-0 z-[130] flex items-center justify-center px-5 transition-opacity duration-500 ${vaultTransition.phase === 'routing' ? 'opacity-0' : 'opacity-100'}`}>
           <div className="absolute inset-0 bg-black/90 backdrop-blur-md" />
