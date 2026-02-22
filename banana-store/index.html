@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="cf-turnstile-site-key" content="0x4AAAAAAACfNOtEXpb_0oQkW" />
+  <meta name="cf-turnstile-site-key" content="%VITE_CF_TURNSTILE_SITE_KEY%" />
   <meta http-equiv="X-Content-Security-Policy"
     content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://cdn.tailwindcss.com https://esm.sh; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https:; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'" />
   <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
@@ -312,52 +312,74 @@
       </div>
       <div style="font-family:Inter,sans-serif;color:rgba(255,255,255,.35);font-size:12px">Protected by Cloudflare</div>
     </div>
-    <div id="cf-turnstile-widget" style="position:absolute;bottom:20px;opacity:0"></div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:8px">
+      <div id="cf-turnstile-widget" style="min-height:70px;display:flex;align-items:center;justify-content:center"></div>
+      <button id="cf-retry"
+        style="display:none;align-items:center;justify-content:center;border:1px solid rgba(250,204,21,.35);background:rgba(250,204,21,.12);color:#fef08a;border-radius:999px;padding:8px 18px;font-family:Inter,sans-serif;font-size:12px;font-weight:700;letter-spacing:.04em;cursor:pointer">
+        Retry verification
+      </button>
+    </div>
   </div>
   <script>
     (function () {
       var shield = document.getElementById('cf-shield');
       var bar = document.getElementById('cf-bar');
       var status = document.getElementById('cf-status');
+      var retryBtn = document.getElementById('cf-retry');
       var passed = false;
-      var step = 0;
-      var iv = setInterval(function () { if (step < 80) { step += Math.random() * 8; bar.style.width = Math.min(step, 80) + '%' } }, 400);
-      function fail(message) {
-        clearInterval(iv);
-        if (bar) bar.style.width = '100%';
-        if (status) {
-          status.textContent = message || 'Cloudflare verification failed. Refresh and try again.';
-          status.style.color = '#fca5a5';
-        }
+      var siteKey = '';
+      var widgetId = null;
+      var progressIv = null;
+      function setStatus(message, color) {
+        if (!status) return;
+        status.textContent = message || 'Verifying you\'re human...';
+        status.style.color = color || '#f8fafc';
       }
-      function pass() {
-        if (passed) return; passed = true; clearInterval(iv);
-        bar.style.width = '100%';
+      function startProgress() {
+        if (progressIv) clearInterval(progressIv);
+        var step = 0;
+        if (bar) bar.style.width = '0%';
+        progressIv = setInterval(function () {
+          if (step < 82) {
+            step += Math.random() * 7;
+            if (bar) bar.style.width = Math.min(step, 82) + '%';
+          }
+        }, 380);
+      }
+      function resetAttemptState() {
+        setStatus('Verifying you\'re human...', '#f8fafc');
+        if (retryBtn) retryBtn.style.display = 'none';
+        startProgress();
+      }
+      function fail(message) {
+        if (progressIv) clearInterval(progressIv);
+        if (bar) bar.style.width = '100%';
+        setStatus(message || 'Cloudflare verification failed. Please refresh.', '#fca5a5');
+        if (retryBtn) retryBtn.style.display = 'inline-flex';
+      }
+      function pass(token) {
+        if (passed) return;
+        passed = true;
+        if (progressIv) clearInterval(progressIv);
+        if (bar) bar.style.width = '100%';
+        if (token) {
+          try { sessionStorage.setItem('cf-turnstile-token', token); } catch (e) { }
+        }
         try { sessionStorage.setItem('cf-turnstile-passed', '1') } catch (e) { }
+        setStatus('Verification complete.', '#86efac');
         setTimeout(function () { shield.style.opacity = '0'; setTimeout(function () { shield.style.display = 'none' }, 500) }, 400);
       }
       var host = (window.location && window.location.hostname ? window.location.hostname.toLowerCase() : '');
       var isLocalHost = host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
-      var siteKey = '';
       try {
         var metaEl = document.querySelector('meta[name="cf-turnstile-site-key"]');
         if (metaEl) siteKey = metaEl.getAttribute('content') || '';
       } catch (e) { }
-      if (!siteKey) {
-        setTimeout(function () {
-          if (!window.__CF_TURNSTILE_SITE_KEY) {
-            if (isLocalHost) {
-              pass();
-              return;
-            }
-            fail('Cloudflare Turnstile site key missing.');
-            return;
-          }
-          siteKey = window.__CF_TURNSTILE_SITE_KEY;
-          renderWidget(siteKey);
-        }, 800);
-      } else {
-        renderWidget(siteKey);
+      if (siteKey && siteKey.indexOf('%VITE_') === 0) {
+        siteKey = '';
+      }
+      if (!siteKey && window.__CF_TURNSTILE_SITE_KEY) {
+        siteKey = String(window.__CF_TURNSTILE_SITE_KEY || '').trim();
       }
       function renderWidget(key) {
         var attempts = 0;
@@ -371,20 +393,48 @@
             setTimeout(tryRender, 200);
             return;
           }
-          window.turnstile.render('#cf-turnstile-widget', {
-            sitekey: key,
-            callback: function (token) {
-              try { sessionStorage.setItem('cf-turnstile-token', token) } catch (e) { }
-              pass();
-            },
-            'error-callback': function () { fail('Cloudflare verification failed. Please refresh.'); },
-            'expired-callback': function () { fail('Cloudflare verification expired. Please refresh.'); },
-            theme: 'dark',
-            appearance: 'interaction-only'
-          });
+          try {
+            if (widgetId !== null) {
+              try { window.turnstile.remove(widgetId); } catch (removeErr) { }
+              widgetId = null;
+            }
+            widgetId = window.turnstile.render('#cf-turnstile-widget', {
+              sitekey: key,
+              callback: function (token) {
+                pass(token);
+              },
+              'error-callback': function () { fail('Cloudflare verification failed. Tap retry.'); },
+              'expired-callback': function () { fail('Cloudflare verification expired. Tap retry.'); },
+              theme: 'dark',
+            });
+          } catch (renderErr) {
+            fail('Cloudflare verification could not start. Tap retry.');
+          }
         }
         tryRender();
       }
+      if (retryBtn) {
+        retryBtn.addEventListener('click', function () {
+          passed = false;
+          try { sessionStorage.removeItem('cf-turnstile-token'); } catch (e) { }
+          resetAttemptState();
+          if (siteKey) {
+            renderWidget(siteKey);
+            return;
+          }
+          fail('Cloudflare Turnstile site key missing.');
+        });
+      }
+      if (!siteKey) {
+        if (isLocalHost) {
+          pass('');
+          return;
+        }
+        fail('Cloudflare Turnstile site key missing.');
+        return;
+      }
+      resetAttemptState();
+      renderWidget(siteKey);
     })();
   </script>
 

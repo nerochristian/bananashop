@@ -20,6 +20,7 @@ html {
   --motion-base: 280ms;
   --motion-slow: 560ms;
   --motion-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-spring: cubic-bezier(0.22, 1.4, 0.36, 1);
 }
 
 * {
@@ -104,6 +105,150 @@ img {
 
 .ambient-orb {
   animation: orbFloat 5.5s ease-in-out infinite;
+}
+
+@keyframes navBarIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-18px) scale(0.985);
+    filter: blur(1px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes navChipIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.95);
+  }
+
+  70% {
+    opacity: 1;
+    transform: translateY(1px) scale(1.03);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes cartPanelIn {
+  0% {
+    opacity: 0;
+    transform: translateX(34px) scale(0.985);
+    filter: blur(1px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes cartItemIn {
+  0% {
+    opacity: 0;
+    transform: translateX(26px) scale(0.96);
+  }
+
+  65% {
+    opacity: 1;
+    transform: translateX(-2px) scale(1.015);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes footerSectionIn {
+  0% {
+    opacity: 0;
+    transform: translateY(24px) scale(0.985);
+    filter: blur(1px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes footerStaggerIn {
+  0% {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.nav-entrance {
+  animation: navBarIn 680ms var(--motion-spring) both;
+}
+
+.nav-stagger {
+  opacity: 0;
+  animation: navChipIn 520ms var(--motion-spring) both;
+  animation-delay: var(--stagger, 0ms);
+}
+
+.cart-panel-entrance {
+  animation: cartPanelIn 620ms var(--motion-spring) both;
+}
+
+.cart-item-entrance {
+  opacity: 0;
+  animation: cartItemIn 520ms var(--motion-spring) both;
+  animation-delay: var(--stagger, 0ms);
+}
+
+.footer-entrance {
+  animation: footerSectionIn 760ms var(--motion-spring) both;
+}
+
+.footer-stagger {
+  opacity: 0;
+  animation: footerStaggerIn 640ms var(--motion-spring) both;
+  animation-delay: var(--stagger, 0ms);
+}
+
+.hover-physics {
+  transition:
+    transform var(--motion-base) var(--motion-spring),
+    box-shadow var(--motion-base) var(--motion-ease),
+    filter var(--motion-base) var(--motion-ease),
+    background-color var(--motion-base) var(--motion-ease),
+    border-color var(--motion-base) var(--motion-ease),
+    color var(--motion-base) var(--motion-ease);
+}
+
+.hover-physics:hover {
+  transform: translateY(-4px) scale(1.04);
+}
+
+.hover-tilt {
+  transition: transform var(--motion-base) var(--motion-spring);
+}
+
+.hover-tilt:hover {
+  transform: translateY(-3px) rotate(-2deg) scale(1.04);
+}
+
+.hover-pop:hover {
+  box-shadow: 0 16px 42px rgba(250, 204, 21, 0.22);
 }
 
 @supports (padding: max(0px)) {
