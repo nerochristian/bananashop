@@ -197,6 +197,15 @@ img {
   animation: none !important;
 }
 
+/* Keep staggered elements visible when animation is disabled by perf-safety. */
+.perf-safety .nav-stagger,
+.perf-safety .cart-item-entrance,
+.perf-safety .footer-stagger {
+  opacity: 1 !important;
+  transform: none !important;
+  filter: none !important;
+}
+
 .perf-safety [class*='backdrop-blur'],
 .perf-safety [class*='blur-'] {
   backdrop-filter: none !important;
