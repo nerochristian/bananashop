@@ -43,6 +43,7 @@ const normalizePath = (pathname: string): string => {
 
 const SESSION_KEY = 'robloxkeys.session';
 const STORE_THEME_KEY = 'robloxkeys.store_theme_blend';
+const CHECKOUT_INTENT_KEY = 'robloxkeys.checkout_intent';
 type CheckoutPaymentMethod = 'card' | 'crypto' | 'paypal';
 type VaultTransitionState = {
   paymentMethod: CheckoutPaymentMethod;
@@ -79,6 +80,35 @@ const writeSession = (user: User | null) => {
     return;
   }
   localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+};
+
+const readCheckoutIntent = (): PendingAuthIntent | null => {
+  try {
+    const raw = sessionStorage.getItem(CHECKOUT_INTENT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<PendingAuthIntent>;
+    if (!parsed || typeof parsed !== 'object') return null;
+    const returnPath = typeof parsed.returnPath === 'string' && parsed.returnPath.trim() ? parsed.returnPath : '/';
+    const returnSearch = typeof parsed.returnSearch === 'string' ? parsed.returnSearch : '';
+    const openCheckout = Boolean(parsed.openCheckout);
+    const resumeCart = Array.isArray(parsed.resumeCart) ? parsed.resumeCart as CartItem[] : [];
+    if (!openCheckout) return null;
+    return { returnPath, returnSearch, openCheckout, resumeCart };
+  } catch {
+    return null;
+  }
+};
+
+const writeCheckoutIntent = (intent: PendingAuthIntent | null) => {
+  try {
+    if (!intent) {
+      sessionStorage.removeItem(CHECKOUT_INTENT_KEY);
+      return;
+    }
+    sessionStorage.setItem(CHECKOUT_INTENT_KEY, JSON.stringify(intent));
+  } catch {
+    // Ignore storage failures.
+  }
 };
 
 const resolveRoute = (
@@ -218,12 +248,14 @@ export default function App() {
     const returnPath = normalizePath(window.location.pathname);
     const returnSearch = window.location.search || '';
     const snapshot = Array.isArray(resumeCart) ? resumeCart : [];
-    setPendingAuthIntent({
+    const intent: PendingAuthIntent = {
       returnPath,
       returnSearch,
       openCheckout: true,
       resumeCart: snapshot,
-    });
+    };
+    setPendingAuthIntent(intent);
+    writeCheckoutIntent(intent);
     setIsCartOpen(false);
     setIsCheckoutOpen(false);
     pushRoute('/auth', products, user);
@@ -534,10 +566,12 @@ export default function App() {
   const handleAuthComplete = (newUser: User) => {
     writeSession(newUser);
     setUser(newUser);
-    if (pendingAuthIntent?.openCheckout) {
-      const { returnPath, returnSearch, resumeCart } = pendingAuthIntent;
+    const checkoutIntent = pendingAuthIntent || readCheckoutIntent();
+    if (checkoutIntent?.openCheckout) {
+      const { returnPath, returnSearch, resumeCart } = checkoutIntent;
       const nextCart = resumeCart.length > 0 ? resumeCart : cart;
       setPendingAuthIntent(null);
+      writeCheckoutIntent(null);
       if (nextCart.length > 0) {
         setCart(nextCart);
       }
@@ -552,6 +586,7 @@ export default function App() {
       return;
     }
     setPendingAuthIntent(null);
+    writeCheckoutIntent(null);
     if (cart.length > 0) {
       setIsCheckoutOpen(true);
       pushRoute('/', products, newUser);
@@ -565,6 +600,7 @@ export default function App() {
     writeSession(null);
     setUser(null);
     setPendingAuthIntent(null);
+    writeCheckoutIntent(null);
     pushRoute('/', products, null);
     setCart([]);
   };
@@ -596,9 +632,11 @@ export default function App() {
       <Auth
         onAuthComplete={handleAuthComplete}
         onBack={() => {
-          if (pendingAuthIntent) {
-            const { returnPath, returnSearch } = pendingAuthIntent;
+          const checkoutIntent = pendingAuthIntent || readCheckoutIntent();
+          if (checkoutIntent) {
+            const { returnPath, returnSearch } = checkoutIntent;
             setPendingAuthIntent(null);
+            writeCheckoutIntent(null);
             pushRoute(returnPath || '/', products, user, returnSearch || '');
             return;
           }
@@ -701,6 +739,7 @@ export default function App() {
             pushRoute(user.role === 'admin' ? '/admin' : '/vault', products, user);
           } else {
             setPendingAuthIntent(null);
+            writeCheckoutIntent(null);
             pushRoute('/auth', products, user);
           }
         }}

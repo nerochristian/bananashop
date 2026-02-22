@@ -77,13 +77,25 @@ export const ProductTierPanel: React.FC<ProductTierPanelProps> = ({
     setIsClosing(false);
   }, [isOpen, product?.id, tiers]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const originalHtmlOverflow = document.documentElement.style.overflow;
+    const originalBodyOverflow = document.body.style.overflow;
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.documentElement.style.overflow = originalHtmlOverflow;
+      document.body.style.overflow = originalBodyOverflow;
+    };
+  }, [isOpen]);
+
   if (!isOpen || !product || tiers.length === 0) return null;
 
   const panelTitle = `${product.name}`;
   const activeTierId = hoveredTierId || selectedTierId;
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-end justify-center p-2 sm:items-center sm:p-8">
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-2 sm:p-8">
       <div
         className={`absolute inset-0 bg-black/85 [backdrop-filter:blur(0px)] [-webkit-backdrop-filter:blur(0px)] ${
           isClosing
