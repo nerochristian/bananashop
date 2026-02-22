@@ -1,51 +1,70 @@
 import React from 'react';
-import { Zap, Shield, Headphones, Globe } from 'lucide-react';
+import { Zap, Shield, Headphones } from 'lucide-react';
 import { BRAND_CONFIG } from '../config/brandConfig';
 
 export const Features: React.FC = () => {
+  const supportHref = String(BRAND_CONFIG.links.support || '#').trim() || '#';
+  const externalSupport = /^https?:\/\//i.test(supportHref);
   const features = [
     {
-      icon: <Zap className="w-6 h-6 text-black" />,
-      title: "Instant Delivery",
-      description: "Receive your account credentials immediately after purchase. No manual wait times."
+      icon: <Zap className="h-6 w-6 text-[#facc15]" />,
+      title: 'Who We Are',
+      description: 'A Roblox key storefront focused on fast delivery, clean purchase flows, and reliable key management.'
     },
     {
-      icon: <Shield className="w-6 h-6 text-black" />,
-      title: "Secure Warranty",
-      description: "All products include a full replacement warranty. We've got you covered."
+      icon: <Shield className="h-6 w-6 text-[#facc15]" />,
+      title: 'Who We Serve',
+      description: 'Players, resellers, and teams that need instant Roblox executor keys with clear tiers and support.'
     },
     {
-      icon: <Headphones className="w-6 h-6 text-black" />,
-      title: "24/7 Support",
-      description: "Our staff are available around the clock via Discord to resolve any issues."
-    },
-    {
-      icon: <Globe className="w-6 h-6 text-black" />,
-      title: "Global Access",
-      description: "Works worldwide without needing a VPN. High quality localized accounts."
+      icon: <Headphones className="h-6 w-6 text-[#facc15]" />,
+      title: 'How Our Products Work',
+      description: 'These products are Roblox executor keys. Pick a tier, pay, then your key is delivered to Member Vault.'
     }
   ];
 
   return (
-    <section id="features" className="py-24 relative overflow-hidden">
-      <div className="max-w-7xl mx-auto px-6 relative z-10">
-        <div className="text-center mb-20">
-          <h2 className="text-4xl md:text-5xl font-black text-white tracking-tighter mb-4">{BRAND_CONFIG.emojis.trust} {BRAND_CONFIG.copy.trustHeading}</h2>
-          <p className="text-white/40 max-w-xl mx-auto text-sm font-medium uppercase tracking-widest">
-            Delivering premium digital access to over 20,000 customers worldwide.
+    <section id="features" className="relative overflow-hidden px-4 pb-20 pt-8 sm:px-6 sm:pb-28 sm:pt-12">
+      <div className="mx-auto max-w-7xl">
+        <div className="mx-auto max-w-4xl text-center">
+          <h2 className="text-3xl font-black tracking-tight text-white sm:text-5xl">
+            Why Choose <span className="text-[#facc15]">{BRAND_CONFIG.identity.storeName}</span>
+          </h2>
+          <p className="mx-auto mt-4 max-w-2xl text-sm font-semibold leading-relaxed text-white/60 sm:text-base">
+            Instant key delivery, secure checkout, and direct support for your Roblox executor key needs.
           </p>
         </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+
+        <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-5">
           {features.map((feature, index) => (
-            <div key={index} className="p-10 rounded-[40px] bg-[#0a0a0a] border border-white/5 hover:border-white/10 transition-all card-glow">
-              <div className="w-14 h-14 rounded-2xl bg-[#facc15] flex items-center justify-center mb-8 shadow-xl shadow-yellow-400/10">
+            <article
+              key={index}
+              className="rounded-2xl border border-white/10 bg-[linear-gradient(180deg,rgba(20,20,20,0.95),rgba(16,16,16,0.96))] p-6 transition-all duration-300 hover:border-[#facc15]/40 hover:shadow-[0_0_45px_rgba(250,204,21,0.08)] sm:p-7"
+            >
+              <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-xl border border-[#facc15]/30 bg-[#facc15]/10">
                 {feature.icon}
               </div>
-              <h3 className="text-xl font-black text-white mb-3 tracking-tight">{feature.title}</h3>
-              <p className="text-white/30 text-xs font-medium leading-relaxed uppercase tracking-wider">{feature.description}</p>
-            </div>
+              <h3 className="text-2xl font-black tracking-tight text-white">{feature.title}</h3>
+              <p className="mt-3 text-base font-medium leading-relaxed text-white/60">{feature.description}</p>
+            </article>
           ))}
+        </div>
+
+        <div className="mx-auto mt-5 max-w-7xl rounded-2xl border border-[#facc15]/30 bg-[#0b0b0b]/70 p-5 text-left backdrop-blur-md sm:mt-6 sm:p-6">
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#facc15]">Contact</p>
+          <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs font-semibold leading-relaxed text-white/75 sm:text-sm">
+              Need help before or after purchase? Contact support for order issues, tier guidance, or key delivery help.
+            </p>
+            <a
+              href={supportHref}
+              target={externalSupport ? '_blank' : undefined}
+              rel={externalSupport ? 'noreferrer noopener' : undefined}
+              className="inline-flex w-full items-center justify-center rounded-xl border border-[#facc15]/40 bg-[#facc15]/20 px-4 py-2.5 text-[10px] font-black uppercase tracking-[0.18em] text-[#facc15] transition-all hover:bg-[#facc15]/30 sm:w-auto"
+            >
+              Contact Support
+            </a>
+          </div>
         </div>
       </div>
     </section>

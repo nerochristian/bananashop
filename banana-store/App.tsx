@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
+import { Features } from './components/Features';
 import { ProductList } from './components/ProductList';
 import { ProductDetail } from './components/ProductDetail';
 import { ProductTierPanel } from './components/ProductTierPanel';
@@ -758,6 +759,7 @@ export default function App() {
             )}
             <Hero />
             <ProductList products={products} onView={handleViewProduct} onBuyNow={handleBuyNow} themeBlend={storeThemeRatio} />
+            <Features />
           </div>
         )}
         {view === 'product-detail' && selectedProduct && (
