@@ -43,7 +43,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onView, theme
   const badgeIcon = (product.cardBadgeIcon || 'grid').toLowerCase();
   const badgeLabel = (product.cardBadgeLabel || (product.type === ServiceType.BUNDLE ? 'BUNDLE' : 'ACCOUNT')).trim();
   const fallbackImage = React.useMemo(() => buildInlineFallback(product.name), [product.name]);
-  const cardBackground = String(product.cardBackdropImage || '').trim();
+  const cardBackground = String(product.cardBackdropImage || product.bannerImage || '').trim();
   const imageCandidates = React.useMemo(() => {
     const items = [
       // Product cards should use product image only (never tier images).
@@ -109,9 +109,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onView, theme
             aria-hidden="true"
             loading="lazy"
             decoding="async"
-            className="h-full w-full object-cover opacity-[0.1] brightness-[0.64] saturate-110 contrast-105"
+            className="h-full w-full object-cover opacity-[0.16] brightness-[0.72] saturate-115 contrast-105"
           />
-          <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(5,5,5,0.93)_0%,rgba(6,6,6,0.9)_44%,rgba(5,5,5,0.95)_100%)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(5,5,5,0.88)_0%,rgba(6,6,6,0.82)_44%,rgba(5,5,5,0.9)_100%)]" />
         </div>
       )}
 
