@@ -659,7 +659,7 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell min-h-screen relative z-10 transition-opacity duration-500">
+    <div className="app-shell perf-safety min-h-screen relative z-10 transition-opacity duration-500">
       <div
         className="pointer-events-none fixed inset-0 z-0 overflow-hidden transition-opacity duration-700 aurora-mode-lite"
         style={{
@@ -677,7 +677,6 @@ export default function App() {
             `,
           }}
         />
-        <div className="aurora-layer aurora-layer-a" style={{ opacity: 0.28 + storeThemeRatio * 0.24 }} />
       </div>
       {vaultTransition && (
         <div className={`fixed inset-0 z-[130] flex items-center justify-center px-5 transition-opacity duration-500 ${vaultTransition.phase === 'routing' ? 'opacity-0' : 'opacity-100'}`}>
