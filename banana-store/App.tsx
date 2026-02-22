@@ -53,6 +53,7 @@ type PendingAuthIntent = {
   returnPath: string;
   returnSearch: string;
   openCheckout: boolean;
+  resumeCart: CartItem[];
 };
 const PAYMENT_METHOD_NAMES: Record<CheckoutPaymentMethod, string> = {
   card: 'Card',
@@ -213,13 +214,15 @@ export default function App() {
     setVaultProgressArmed(false);
   };
 
-  const requestCheckoutAuth = () => {
+  const requestCheckoutAuth = (resumeCart: CartItem[] = cart) => {
     const returnPath = normalizePath(window.location.pathname);
     const returnSearch = window.location.search || '';
+    const snapshot = Array.isArray(resumeCart) ? resumeCart : [];
     setPendingAuthIntent({
       returnPath,
       returnSearch,
       openCheckout: true,
+      resumeCart: snapshot,
     });
     setIsCartOpen(false);
     setIsCheckoutOpen(false);
@@ -489,9 +492,10 @@ export default function App() {
     const item = buildCartItem(product, quantity, tier);
     if (item.stock <= 0) return;
 
-    setCart([item]);
+    const nextCart = [item];
+    setCart(nextCart);
     if (!user) {
-      requestCheckoutAuth();
+      requestCheckoutAuth(nextCart);
     } else {
       setIsCheckoutOpen(true);
     }
@@ -530,11 +534,21 @@ export default function App() {
   const handleAuthComplete = (newUser: User) => {
     writeSession(newUser);
     setUser(newUser);
-    if (pendingAuthIntent?.openCheckout && cart.length > 0) {
-      const { returnPath, returnSearch } = pendingAuthIntent;
+    if (pendingAuthIntent?.openCheckout) {
+      const { returnPath, returnSearch, resumeCart } = pendingAuthIntent;
+      const nextCart = resumeCart.length > 0 ? resumeCart : cart;
       setPendingAuthIntent(null);
+      if (nextCart.length > 0) {
+        setCart(nextCart);
+      }
       pushRoute(returnPath || '/', products, newUser, returnSearch || '');
-      window.setTimeout(() => setIsCheckoutOpen(true), 80);
+      window.setTimeout(() => {
+        if (nextCart.length > 0) {
+          setIsCheckoutOpen(true);
+          return;
+        }
+        setIsCartOpen(true);
+      }, 80);
       return;
     }
     setPendingAuthIntent(null);
@@ -754,7 +768,7 @@ export default function App() {
         onRemove={removeFromCart}
         onCheckout={() => {
           if (!user) {
-            requestCheckoutAuth();
+            requestCheckoutAuth(cart);
           } else {
             setIsCartOpen(false);
             setIsCheckoutOpen(true);
