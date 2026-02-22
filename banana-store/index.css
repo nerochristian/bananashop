@@ -107,66 +107,57 @@ img {
 
 @keyframes auroraFlowA {
   0% {
-    transform: translate3d(-7%, 3%, 0) scale(1.02) rotate(-1deg);
-    background-position: -6% -8%, 102% 108%, 54% 98%;
+    transform: translate3d(-4%, 2%, 0) scale(1.01);
   }
 
   50% {
-    transform: translate3d(8%, -4%, 0) scale(1.1) rotate(1deg);
-    background-position: 8% -2%, 94% 102%, 46% 90%;
+    transform: translate3d(4%, -2%, 0) scale(1.04);
   }
 
   100% {
-    transform: translate3d(-7%, 3%, 0) scale(1.02) rotate(-1deg);
-    background-position: -6% -8%, 102% 108%, 54% 98%;
+    transform: translate3d(-4%, 2%, 0) scale(1.01);
   }
 }
 
 @keyframes auroraFlowB {
   0% {
-    transform: translate3d(6%, -5%, 0) scale(1.08) rotate(1deg);
-    background-position: 106% -10%, -8% 112%, 50% 96%;
+    transform: translate3d(4%, -3%, 0) scale(1.03);
   }
 
   50% {
-    transform: translate3d(-7%, 5%, 0) scale(1) rotate(-1deg);
-    background-position: 96% -2%, 4% 104%, 56% 90%;
+    transform: translate3d(-4%, 3%, 0) scale(1);
   }
 
   100% {
-    transform: translate3d(6%, -5%, 0) scale(1.08) rotate(1deg);
-    background-position: 106% -10%, -8% 112%, 50% 96%;
+    transform: translate3d(4%, -3%, 0) scale(1.03);
   }
 }
 
 @keyframes auroraHaze {
   0% {
-    transform: translate3d(0, 0, 0) scale(1);
-    background-position: 10% 84%, 90% 18%, 52% 58%;
+    transform: translate3d(0, 0, 0) scale(1.01);
   }
 
   50% {
-    transform: translate3d(2%, -2%, 0) scale(1.04);
-    background-position: 16% 78%, 84% 22%, 46% 54%;
+    transform: translate3d(1.5%, -1.5%, 0) scale(1.03);
   }
 
   100% {
-    transform: translate3d(0, 0, 0) scale(1);
-    background-position: 10% 84%, 90% 18%, 52% 58%;
+    transform: translate3d(0, 0, 0) scale(1.01);
   }
 }
 
 .aurora-layer {
   position: absolute;
-  inset: -16% -14%;
-  will-change: transform, background-position, opacity;
-  mix-blend-mode: screen;
+  inset: -8% -8%;
+  will-change: transform, opacity;
+  mix-blend-mode: normal;
   pointer-events: none;
 }
 
 .aurora-mode-lite .aurora-layer {
   mix-blend-mode: normal;
-  will-change: opacity, transform;
+  will-change: transform;
 }
 
 .aurora-layer-a {
@@ -174,7 +165,7 @@ img {
     radial-gradient(86% 72% at -8% -10%, rgba(250, 204, 21, 0.42) 0%, rgba(250, 204, 21, 0.15) 26%, rgba(250, 204, 21, 0.04) 50%, transparent 74%),
     radial-gradient(82% 70% at 108% 112%, rgba(250, 204, 21, 0.38) 0%, rgba(250, 204, 21, 0.13) 24%, rgba(250, 204, 21, 0.04) 49%, transparent 73%),
     radial-gradient(60% 52% at 52% 100%, rgba(250, 204, 21, 0.2) 0%, rgba(250, 204, 21, 0.07) 30%, transparent 62%);
-  animation: auroraFlowA 5.2s linear infinite;
+  animation: auroraFlowA 12s ease-in-out infinite;
 }
 
 .aurora-layer-b {
@@ -182,7 +173,7 @@ img {
     radial-gradient(84% 66% at 110% -8%, rgba(250, 204, 21, 0.34) 0%, rgba(250, 204, 21, 0.11) 25%, rgba(250, 204, 21, 0.03) 48%, transparent 72%),
     radial-gradient(82% 64% at -10% 114%, rgba(250, 204, 21, 0.32) 0%, rgba(250, 204, 21, 0.1) 24%, rgba(250, 204, 21, 0.03) 48%, transparent 72%),
     radial-gradient(52% 42% at 50% 96%, rgba(250, 204, 21, 0.16) 0%, rgba(250, 204, 21, 0.05) 26%, transparent 58%);
-  animation: auroraFlowB 4.6s linear infinite;
+  animation: auroraFlowB 11s ease-in-out infinite;
 }
 
 .aurora-layer-haze {
@@ -190,7 +181,7 @@ img {
     radial-gradient(68% 44% at 8% 86%, rgba(250, 204, 21, 0.14) 0%, rgba(250, 204, 21, 0.04) 36%, transparent 66%),
     radial-gradient(64% 40% at 92% 20%, rgba(250, 204, 21, 0.13) 0%, rgba(250, 204, 21, 0.04) 34%, transparent 64%),
     radial-gradient(58% 46% at 50% 60%, rgba(250, 204, 21, 0.09) 0%, rgba(250, 204, 21, 0.03) 32%, transparent 62%);
-  animation: auroraHaze 3.8s linear infinite;
+  animation: auroraHaze 10s ease-in-out infinite;
 }
 
 @media (max-width: 900px) {

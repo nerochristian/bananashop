@@ -169,7 +169,6 @@ export default function App() {
   const [tierPanelProduct, setTierPanelProduct] = useState<Product | null>(null);
   const [apiOnline, setApiOnline] = useState<boolean | null>(null);
   const [storeThemeBlend, setStoreThemeBlend] = useState<number>(62);
-  const [lowPerformanceMode, setLowPerformanceMode] = useState(false);
   const [vaultTransition, setVaultTransition] = useState<VaultTransitionState | null>(null);
   const [vaultProgressArmed, setVaultProgressArmed] = useState(false);
   const [pendingAuthIntent, setPendingAuthIntent] = useState<PendingAuthIntent | null>(null);
@@ -458,19 +457,6 @@ export default function App() {
     return () => window.removeEventListener('popstate', onPopState);
   }, [products, user]);
 
-  useEffect(() => {
-    try {
-      const nav = navigator as Navigator & { connection?: { saveData?: boolean }; deviceMemory?: number };
-      const saveData = Boolean(nav.connection?.saveData);
-      const lowCpu = Number(nav.hardwareConcurrency || 8) <= 4;
-      const lowMemory = Number(nav.deviceMemory || 8) <= 4;
-      const coarsePointer = window.matchMedia('(pointer: coarse)').matches;
-      setLowPerformanceMode(saveData || lowCpu || lowMemory || (coarsePointer && (lowCpu || lowMemory)));
-    } catch {
-      setLowPerformanceMode(false);
-    }
-  }, []);
-
   const hasTiers = (product: Product) => Array.isArray(product.tiers) && product.tiers.length > 0;
 
   const buildCartItem = (product: Product, quantity: number, tier?: ProductTier): CartItem => {
@@ -675,7 +661,7 @@ export default function App() {
   return (
     <div className="app-shell min-h-screen relative z-10 transition-opacity duration-500">
       <div
-        className={`pointer-events-none fixed inset-0 z-0 overflow-hidden transition-opacity duration-700 ${lowPerformanceMode ? 'aurora-mode-lite' : ''}`}
+        className="pointer-events-none fixed inset-0 z-0 overflow-hidden transition-opacity duration-700 aurora-mode-lite"
         style={{
           opacity: shouldShowAnimatedBackground ? 1 : 0,
         }}
@@ -683,7 +669,7 @@ export default function App() {
         <div
           className="absolute inset-0"
           style={{
-            opacity: lowPerformanceMode ? 0.95 : 0.92 + storeThemeRatio * 0.08,
+            opacity: 0.96,
             background: `
               linear-gradient(180deg, #020202 0%, #050505 58%, #020202 100%),
               radial-gradient(95% 75% at -10% -5%, rgba(250, 204, 21, ${0.08 + storeThemeRatio * 0.1}) 0%, rgba(250, 204, 21, 0.02) 38%, transparent 72%),
@@ -691,9 +677,7 @@ export default function App() {
             `,
           }}
         />
-        <div className="aurora-layer aurora-layer-a" style={{ opacity: lowPerformanceMode ? 0.36 : 0.42 + storeThemeRatio * 0.36 }} />
-        {!lowPerformanceMode && <div className="aurora-layer aurora-layer-b" style={{ opacity: 0.34 + storeThemeRatio * 0.34 }} />}
-        {!lowPerformanceMode && <div className="aurora-layer aurora-layer-haze" style={{ opacity: 0.24 + storeThemeRatio * 0.26 }} />}
+        <div className="aurora-layer aurora-layer-a" style={{ opacity: 0.28 + storeThemeRatio * 0.24 }} />
       </div>
       {vaultTransition && (
         <div className={`fixed inset-0 z-[130] flex items-center justify-center px-5 transition-opacity duration-500 ${vaultTransition.phase === 'routing' ? 'opacity-0' : 'opacity-100'}`}>
