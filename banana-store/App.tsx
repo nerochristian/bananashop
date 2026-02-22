@@ -267,10 +267,6 @@ export default function App() {
     const localProducts: Product[] = [];
     setProducts(localProducts);
     let session = readSession();
-    if (session && !ShopApiService.hasSessionToken()) {
-      writeSession(null);
-      session = null;
-    }
     if (session) {
       setUser(session);
     }
@@ -414,7 +410,21 @@ export default function App() {
       try {
         await handlePaymentReturn();
         await refreshApiHealth();
-        if (session?.role === 'admin' && ShopApiService.hasSessionToken()) {
+        let resolvedSession = session;
+        try {
+          const sessionState = await ShopApiService.authSession();
+          resolvedSession = sessionState.user;
+          setUser(sessionState.user);
+          writeSession(sessionState.user);
+        } catch {
+          if (session || ShopApiService.hasSessionToken()) {
+            resolvedSession = null;
+            ShopApiService.clearSessionToken();
+            writeSession(null);
+            setUser(null);
+          }
+        }
+        if (resolvedSession?.role === 'admin') {
           try {
             const remoteSettings = await ShopApiService.getState('settings');
             setAdminSettings(remoteSettings);
@@ -424,7 +434,7 @@ export default function App() {
         }
         const remoteProducts = await ShopApiService.getProducts();
         setProducts(remoteProducts);
-        applyRoute(window.location.pathname, remoteProducts, session, window.location.search);
+        applyRoute(window.location.pathname, remoteProducts, resolvedSession, window.location.search);
         setApiOnline(true);
       } catch (error) {
         setApiOnline(false);
@@ -586,6 +596,9 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    void ShopApiService.authLogout().catch(() => {
+      // Local session is cleared below regardless.
+    });
     ShopApiService.clearSessionToken();
     writeSession(null);
     setUser(null);

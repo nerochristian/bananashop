@@ -101,7 +101,7 @@ const withTimeout = async (url: string, init: RequestInit): Promise<Response> =>
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), STORE_API_TIMEOUT_MS);
   try {
-    return await fetch(url, { ...init, signal: controller.signal, credentials: STORE_API_BASE_URL ? 'omit' : 'same-origin' });
+    return await fetch(url, { ...init, signal: controller.signal, credentials: 'include' });
   } finally {
     clearTimeout(timeoutId);
   }
@@ -305,6 +305,11 @@ export interface AuthVerifyOtpResult {
   message?: string;
 }
 
+export interface AuthSessionResult {
+  user: User;
+  message?: string;
+}
+
 export type ShopStateKey =
   | 'settings'
   | 'users'
@@ -378,6 +383,34 @@ export const ShopApiService = {
 
   clearSessionToken(): void {
     writeSessionToken('');
+  },
+
+  async authSession(): Promise<AuthSessionResult> {
+    const response = await withTimeout(resolvePath('/auth/session'), {
+      method: 'GET',
+      headers: buildHeaders(),
+    });
+    const payload = await response.json().catch(() => ({})) as { ok?: boolean; message?: string; user?: User; sessionToken?: string };
+    if (!response.ok || !payload.user) {
+      throw new Error(payload.message || `Session check failed (${response.status})`);
+    }
+    const sessionToken = String(payload.sessionToken || '').trim();
+    if (sessionToken) {
+      writeSessionToken(sessionToken);
+    }
+    return { user: payload.user, message: payload.message };
+  },
+
+  async authLogout(): Promise<void> {
+    try {
+      await withTimeout(resolvePath('/auth/logout'), {
+        method: 'POST',
+        headers: buildHeaders(),
+        body: JSON.stringify({}),
+      });
+    } finally {
+      writeSessionToken('');
+    }
   },
 
   async health(): Promise<{

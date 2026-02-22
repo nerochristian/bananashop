@@ -61,6 +61,12 @@ class WebsiteBridgeServer:
         self.auth_session_ttl_seconds = max(
             300, self._to_int(os.getenv("AUTH_SESSION_TTL_SECONDS"), default=86400) or 86400
         )
+        self.shop_session_cookie_name = (os.getenv("SHOP_SESSION_COOKIE_NAME") or "robloxkeys_session").strip() or "robloxkeys_session"
+        self.shop_session_cookie_secure = self._env_bool("SHOP_SESSION_COOKIE_SECURE", default=True)
+        cookie_same_site = (os.getenv("SHOP_SESSION_COOKIE_SAMESITE") or "").strip().lower()
+        if cookie_same_site not in {"", "lax", "strict", "none"}:
+            cookie_same_site = ""
+        self.shop_session_cookie_same_site = cookie_same_site
         self.auth_session_secret_file = self._resolve_auth_session_secret_file()
         self.auth_session_secret = (os.getenv("AUTH_SESSION_SECRET") or "").strip()
         if not self.auth_session_secret:
@@ -260,6 +266,8 @@ class WebsiteBridgeServer:
         self.app.router.add_post("/shop/auth/login", self.shop_auth_login)
         self.app.router.add_post("/shop/auth/verify-otp", self.shop_auth_verify_otp)
         self.app.router.add_post("/shop/auth/register", self.shop_auth_register)
+        self.app.router.add_get("/shop/auth/session", self.shop_auth_session)
+        self.app.router.add_post("/shop/auth/logout", self.shop_auth_logout)
         self.app.router.add_post("/shop/auth/discord/link-token", self.shop_auth_discord_link_token)
         self.app.router.add_post("/shop/auth/discord/connect-url", self.shop_auth_discord_connect_url)
         self.app.router.add_get("/shop/auth/discord/callback", self.shop_auth_discord_callback)
@@ -433,6 +441,7 @@ class WebsiteBridgeServer:
             "/shop/auth/login",
             "/shop/auth/verify-otp",
             "/shop/auth/register",
+            "/shop/auth/logout",
             "/shop/auth/discord/callback",
         }:
             return True
@@ -497,6 +506,79 @@ class WebsiteBridgeServer:
             return auth_header[7:].strip()
         return ""
 
+    def _extract_shop_session_cookie(self, request: web.Request) -> str:
+        try:
+            return str(request.cookies.get(self.shop_session_cookie_name, "")).strip()
+        except Exception:
+            return ""
+
+    @staticmethod
+    def _request_host(request: web.Request) -> str:
+        host_header = str(request.headers.get("Host") or "").strip()
+        if not host_header:
+            return ""
+        parsed = urlparse(f"//{host_header}", scheme="https")
+        return str(parsed.hostname or "").strip().lower()
+
+    @staticmethod
+    def _origin_host(request: web.Request) -> str:
+        origin = str(request.headers.get("Origin") or "").strip()
+        if not origin:
+            return ""
+        parsed = urlparse(origin)
+        return str(parsed.hostname or "").strip().lower()
+
+    @staticmethod
+    def _is_request_secure(request: web.Request) -> bool:
+        if bool(getattr(request, "secure", False)):
+            return True
+        proto = str(request.headers.get("X-Forwarded-Proto") or "").strip().lower()
+        return proto == "https"
+
+    def _resolve_session_cookie_samesite(self, request: web.Request, secure: bool) -> str:
+        if self.shop_session_cookie_same_site:
+            configured = self.shop_session_cookie_same_site
+            if configured == "none" and not secure:
+                return "Lax"
+            return configured.capitalize()
+
+        request_host = self._request_host(request)
+        origin_host = self._origin_host(request)
+        is_cross_site = bool(request_host and origin_host and request_host != origin_host)
+        if is_cross_site and secure:
+            return "None"
+        return "Lax"
+
+    def _set_shop_session_cookie(self, request: web.Request, response: web.StreamResponse, token: str) -> None:
+        raw_token = str(token or "").strip()
+        if not raw_token:
+            return
+        secure = bool(self.shop_session_cookie_secure and self._is_request_secure(request))
+        samesite = self._resolve_session_cookie_samesite(request, secure)
+        response.set_cookie(
+            self.shop_session_cookie_name,
+            raw_token,
+            max_age=self.auth_session_ttl_seconds,
+            httponly=True,
+            secure=secure,
+            samesite=samesite,
+            path="/",
+        )
+
+    def _clear_shop_session_cookie(self, request: web.Request, response: web.StreamResponse) -> None:
+        secure = bool(self.shop_session_cookie_secure and self._is_request_secure(request))
+        samesite = self._resolve_session_cookie_samesite(request, secure)
+        response.set_cookie(
+            self.shop_session_cookie_name,
+            "",
+            max_age=0,
+            expires="Thu, 01 Jan 1970 00:00:00 GMT",
+            httponly=True,
+            secure=secure,
+            samesite=samesite,
+            path="/",
+        )
+
     def _sign_session_payload(self, payload_b64: str) -> str:
         digest = hmac.new(
             self.auth_session_secret.encode("utf-8"),
@@ -546,9 +628,14 @@ class WebsiteBridgeServer:
 
     def _parse_shop_session_from_request(self, request: web.Request) -> Optional[dict[str, Any]]:
         token = self._extract_bearer_token(request)
-        if not token:
-            return None
-        return self._parse_shop_session_token(token)
+        if token:
+            parsed = self._parse_shop_session_token(token)
+            if isinstance(parsed, dict):
+                return parsed
+        token = self._extract_shop_session_cookie(request)
+        if token:
+            return self._parse_shop_session_token(token)
+        return None
 
     @staticmethod
     def _shop_user_from_request(request: web.Request) -> Optional[dict[str, Any]]:
@@ -578,13 +665,13 @@ class WebsiteBridgeServer:
         return web.Response(status=204)
 
     def _apply_cors_headers(self, request: web.Request, response: web.StreamResponse) -> None:
-        origin = request.headers.get("Origin")
+        origin = str(request.headers.get("Origin") or "").strip()
 
-        if "*" in self.allowed_origins:
-            response.headers["Access-Control-Allow-Origin"] = "*"
-        elif origin and self._is_origin_allowed(origin):
+        if origin and ("*" in self.allowed_origins or self._is_origin_allowed(origin)):
             response.headers["Access-Control-Allow-Origin"] = origin
             response.headers["Vary"] = "Origin"
+        elif "*" in self.allowed_origins:
+            response.headers["Access-Control-Allow-Origin"] = "*"
         else:
             response.headers["Access-Control-Allow-Origin"] = self.allowed_origins[0]
 
@@ -592,6 +679,7 @@ class WebsiteBridgeServer:
         request_headers = request.headers.get("Access-Control-Request-Headers")
         default_headers = f"Content-Type,Authorization,x-api-key,{self.api_key_header}"
         response.headers["Access-Control-Allow-Headers"] = request_headers or default_headers
+        response.headers["Access-Control-Allow-Credentials"] = "true"
 
     def _is_origin_allowed(self, origin: str) -> bool:
         for allowed in self.allowed_origins:
@@ -942,7 +1030,7 @@ class WebsiteBridgeServer:
             requires_discord = bool(self.discord_link_required_on_login and self._is_discord_oauth_ready() and not has_discord_link)
             session_token = self._issue_shop_session_token(public_user)
             await self._append_security_log(f"User Authentication Successful: {email}", "SUCCESS")
-            return web.json_response(
+            response = web.json_response(
                 {
                     "ok": True,
                     "user": public_user,
@@ -952,6 +1040,8 @@ class WebsiteBridgeServer:
                     "message": "Connect Discord to continue" if requires_discord else "",
                 }
             )
+            self._set_shop_session_cookie(request, response, session_token)
+            return response
 
         await self._append_security_log(f"Failed Login Attempt: {email}", "CRITICAL")
         return web.json_response({"ok": False, "message": "invalid email or password"}, status=401)
@@ -1000,7 +1090,7 @@ class WebsiteBridgeServer:
             requires_discord = bool(self.discord_link_required_on_login and self._is_discord_oauth_ready() and not has_discord_link)
             session_token = self._issue_shop_session_token(public_user)
             await self._append_security_log(f"User 2FA Authentication Successful: {email}", "SUCCESS")
-            return web.json_response(
+            response = web.json_response(
                 {
                     "ok": True,
                     "user": public_user,
@@ -1010,6 +1100,8 @@ class WebsiteBridgeServer:
                     "message": "Connect Discord to continue" if requires_discord else "",
                 }
             )
+            self._set_shop_session_cookie(request, response, session_token)
+            return response
 
         await self._append_security_log(f"User not found after OTP verify: {email}", "CRITICAL")
         return web.json_response({"ok": False, "message": "user not found"}, status=404)
@@ -1049,13 +1141,39 @@ class WebsiteBridgeServer:
 
         public_user = dict(user)
         public_user.pop("password", None)
-        return web.json_response(
+        session_token = self._issue_shop_session_token(public_user)
+        response = web.json_response(
             {
                 "ok": True,
                 "user": public_user,
-                "sessionToken": self._issue_shop_session_token(public_user),
+                "sessionToken": session_token,
             }
         )
+        self._set_shop_session_cookie(request, response, session_token)
+        return response
+
+    async def shop_auth_session(self, request: web.Request):
+        auth_user = self._shop_user_from_request(request)
+        if not isinstance(auth_user, dict):
+            return web.json_response({"ok": False, "message": "unauthorized"}, status=401)
+
+        user_id = str(auth_user.get("id") or "").strip()
+        email = str(auth_user.get("email") or "").strip().lower()
+        public_user = await self._get_public_user_by_identity(user_id, email)
+        if not isinstance(public_user, dict):
+            response = web.json_response({"ok": False, "message": "unauthorized"}, status=401)
+            self._clear_shop_session_cookie(request, response)
+            return response
+
+        session_token = self._issue_shop_session_token(public_user)
+        response = web.json_response({"ok": True, "user": public_user, "sessionToken": session_token})
+        self._set_shop_session_cookie(request, response, session_token)
+        return response
+
+    async def shop_auth_logout(self, request: web.Request):
+        response = web.json_response({"ok": True})
+        self._clear_shop_session_cookie(request, response)
+        return response
 
     async def shop_auth_discord_link_token(self, request: web.Request):
         auth_user = self._shop_user_from_request(request)

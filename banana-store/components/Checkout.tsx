@@ -162,6 +162,9 @@ export const Checkout: React.FC<CheckoutProps> = ({ isOpen, onClose, items, curr
         const lowered = String(errorText || '').toLowerCase();
         const isUnauthorized = lowered.includes('(401)') || lowered.includes('401') || lowered.includes('unauthorized');
         if (isUnauthorized) {
+          void ShopApiService.authLogout().catch(() => {
+            // Local session is cleared below regardless.
+          });
           ShopApiService.clearSessionToken();
           try { localStorage.removeItem('robloxkeys.session'); } catch { }
           setError('Session expired. Redirecting to sign in...');
