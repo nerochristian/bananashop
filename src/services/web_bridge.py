@@ -2171,6 +2171,16 @@ class WebsiteBridgeServer:
             unit_price = self._to_float(product.get("price"), default=0.0) or 0.0
             original_price = self._to_float(product.get("originalPrice"), default=0.0) or 0.0
             display_name = str(product.get("name") or item_id).strip()
+            product_duration_label = str(product.get("duration") or "").strip()
+            product_duration_seconds = self._to_int(product.get("durationSeconds"), default=None)
+            if product_duration_seconds is None:
+                product_duration_seconds = self._to_int(product.get("duration_seconds"), default=None)
+            if product_duration_seconds is None:
+                product_duration_seconds = self._duration_label_to_seconds(product_duration_label)
+            duration_label = str(raw_item.get("duration") or "").strip()
+            duration_seconds = self._to_int(raw_item.get("durationSeconds"), default=None)
+            if duration_seconds is None:
+                duration_seconds = self._to_int(raw_item.get("duration_seconds"), default=None)
             tier_name = ""
             if tier_id:
                 tier = self._find_tier(product, tier_id)
@@ -2184,6 +2194,23 @@ class WebsiteBridgeServer:
                     display_name = f"{display_name} {tier_name}"
                 unit_price = self._to_float(tier.get("price"), default=0.0) or 0.0
                 original_price = self._to_float(tier.get("originalPrice"), default=0.0) or 0.0
+                tier_duration_label = str(tier.get("duration") or "").strip()
+                tier_duration_seconds = self._to_int(tier.get("durationSeconds"), default=None)
+                if tier_duration_seconds is None:
+                    tier_duration_seconds = self._to_int(tier.get("duration_seconds"), default=None)
+                if tier_duration_seconds is None:
+                    tier_duration_seconds = self._duration_label_to_seconds(tier_duration_label)
+                if tier_duration_label:
+                    duration_label = tier_duration_label
+                if tier_duration_seconds is not None:
+                    duration_seconds = tier_duration_seconds
+
+            if not duration_label:
+                duration_label = product_duration_label
+            if duration_seconds is None:
+                duration_seconds = product_duration_seconds
+            if duration_seconds is None and duration_label:
+                duration_seconds = self._duration_label_to_seconds(duration_label)
 
             if unit_price <= 0:
                 return None, 0.0, web.json_response(
@@ -2191,6 +2218,7 @@ class WebsiteBridgeServer:
                     status=400,
                 )
 
+            normalized_duration_seconds = max(0, self._to_int(duration_seconds, default=0) or 0)
             line_id = str(raw_item.get("id") or "").strip() or (f"{item_id}::{tier_id}" if tier_id else item_id)
             normalized_items.append(
                 {
@@ -2202,7 +2230,8 @@ class WebsiteBridgeServer:
                     "originalPrice": round(original_price, 2),
                     "tierId": tier_id,
                     "tierName": tier_name,
-                    "duration": str(raw_item.get("duration") or product.get("duration") or "").strip(),
+                    "duration": duration_label,
+                    "durationSeconds": normalized_duration_seconds,
                     "image": str(raw_item.get("image") or product.get("image") or "").strip(),
                 }
             )
@@ -2916,11 +2945,31 @@ class WebsiteBridgeServer:
             "discordAvatar": str(user_data.get("discordAvatar") or "").strip(),
             "discordLinkedAt": str(user_data.get("discordLinkedAt") or "").strip(),
         }
+        purchased_at = datetime.now(timezone.utc)
+        purchased_at_iso = purchased_at.isoformat()
+        items_with_expiry: list[dict[str, Any]] = []
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            item_copy = dict(item)
+            item_copy["purchasedAt"] = purchased_at_iso
+            duration_seconds = self._to_int(item_copy.get("durationSeconds"), default=None)
+            if duration_seconds is None:
+                duration_seconds = self._to_int(item_copy.get("duration_seconds"), default=None)
+            if duration_seconds is None:
+                duration_seconds = self._duration_label_to_seconds(str(item_copy.get("duration") or "").strip())
+            normalized_duration_seconds = max(0, self._to_int(duration_seconds, default=0) or 0)
+            item_copy["durationSeconds"] = normalized_duration_seconds
+            if normalized_duration_seconds > 0:
+                item_copy["expiresAt"] = (purchased_at + timedelta(seconds=normalized_duration_seconds)).isoformat()
+            else:
+                item_copy.pop("expiresAt", None)
+            items_with_expiry.append(item_copy)
         order_total = round(
             sum(
                 (self._to_float(item.get("price"), default=0.0) or 0.0)
                 * max(1, self._to_int(item.get("quantity"), default=1) or 1)
-                for item in items
+                for item in items_with_expiry
                 if isinstance(item, dict)
             ),
             2,
@@ -2929,10 +2978,10 @@ class WebsiteBridgeServer:
         order_record = {
             "id": str(order_data.get("id") or f"ord-{int(datetime.now(timezone.utc).timestamp())}"),
             "userId": str(safe_user_data.get("id") or safe_user_data.get("email") or "guest"),
-            "createdAt": datetime.now(timezone.utc).isoformat(),
+            "createdAt": purchased_at_iso,
             "paymentMethod": payment_method,
             "user": safe_user_data,
-            "items": items,
+            "items": items_with_expiry,
             "total": order_total,
             "status": "completed",
             "credentials": credentials,
@@ -4519,6 +4568,13 @@ class WebsiteBridgeServer:
             or ""
         ).strip()
         image_value = self._normalize_asset_url(image_value)
+        duration_value = str(tier.get("duration", "")).strip()
+        duration_seconds = self._to_int(tier.get("durationSeconds"), default=None)
+        if duration_seconds is None:
+            duration_seconds = self._to_int(tier.get("duration_seconds"), default=None)
+        if duration_seconds is None:
+            duration_seconds = self._duration_label_to_seconds(duration_value)
+        normalized_duration_seconds = max(0, self._to_int(duration_seconds, default=0) or 0)
         return {
             "id": str(tier.get("id", "")).strip(),
             "name": str(tier.get("name", "")).strip(),
@@ -4526,7 +4582,8 @@ class WebsiteBridgeServer:
             "price": self._to_float(tier.get("price"), default=0.0) or 0.0,
             "originalPrice": self._to_float(tier.get("originalPrice"), default=0.0) or 0.0,
             "image": image_value,
-            "duration": str(tier.get("duration", "")).strip(),
+            "duration": duration_value,
+            "durationSeconds": normalized_duration_seconds,
             "stock": len(normalized_inventory),
             "inventory": normalized_inventory,
         }
@@ -4608,6 +4665,13 @@ class WebsiteBridgeServer:
         ).strip()
         image_value = self._normalize_asset_url(image_value)
         banner_image_value = self._normalize_asset_url(banner_image_value)
+        duration_value = str(product.get("duration", "1 Month")).strip() or "1 Month"
+        duration_seconds = self._to_int(product.get("durationSeconds"), default=None)
+        if duration_seconds is None:
+            duration_seconds = self._to_int(product.get("duration_seconds"), default=None)
+        if duration_seconds is None:
+            duration_seconds = self._duration_label_to_seconds(duration_value)
+        normalized_duration_seconds = max(0, self._to_int(duration_seconds, default=0) or 0)
 
         return {
             "id": str(product.get("id", "")).strip(),
@@ -4616,7 +4680,8 @@ class WebsiteBridgeServer:
             "urlPath": str(product.get("urlPath", "")).strip(),
             "price": self._to_float(product.get("price"), default=0.0) or 0.0,
             "originalPrice": self._to_float(product.get("originalPrice"), default=0.0) or 0.0,
-            "duration": str(product.get("duration", "1 Month")).strip() or "1 Month",
+            "duration": duration_value,
+            "durationSeconds": normalized_duration_seconds,
             "type": type_value,
             "features": [str(feature) for feature in features],
             "detailedDescription": [str(line) for line in detailed],
@@ -4639,6 +4704,50 @@ class WebsiteBridgeServer:
             "verified": bool(product.get("verified", False)),
             "instantDelivery": bool(product.get("instantDelivery", False)),
         }
+
+    def _duration_label_to_seconds(self, label: str) -> Optional[int]:
+        text = str(label or "").strip().lower()
+        if not text:
+            return None
+
+        if any(token in text for token in ("lifetime", "forever", "permanent", "unlimited", "never expires")):
+            return None
+
+        total_seconds = 0.0
+        matched = False
+        for amount_raw, unit_raw in re.findall(r"(\d+(?:\.\d+)?)\s*([a-z]+)", text):
+            try:
+                amount = float(amount_raw)
+            except (TypeError, ValueError):
+                continue
+            if amount <= 0:
+                continue
+
+            unit = unit_raw.strip().lower()
+            multiplier = 0.0
+            if unit in {"s", "sec", "secs", "second", "seconds"}:
+                multiplier = 1.0
+            elif unit in {"m", "min", "mins", "minute", "minutes"}:
+                multiplier = 60.0
+            elif unit in {"h", "hr", "hrs", "hour", "hours"}:
+                multiplier = 3600.0
+            elif unit in {"d", "day", "days"}:
+                multiplier = 86400.0
+            elif unit in {"w", "wk", "wks", "week", "weeks"}:
+                multiplier = 604800.0
+            elif unit in {"mo", "mos", "month", "months"}:
+                multiplier = 2592000.0
+            elif unit in {"y", "yr", "yrs", "year", "years"}:
+                multiplier = 31536000.0
+
+            if multiplier <= 0:
+                continue
+            total_seconds += amount * multiplier
+            matched = True
+
+        if matched and total_seconds > 0:
+            return int(total_seconds)
+        return None
 
     @staticmethod
     def _to_int(value: Any, default: Optional[int]) -> Optional[int]:

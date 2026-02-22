@@ -110,7 +110,8 @@ const withTimeout = async (url: string, init: RequestInit): Promise<Response> =>
 type ProductPayload = Product & {
   original_price?: number;
   features_json?: string;
-  tiers?: Array<ProductTier & { original_price?: number }>;
+  duration_seconds?: number;
+  tiers?: Array<ProductTier & { original_price?: number; duration_seconds?: number }>;
 };
 
 const readString = (value: unknown): string => (typeof value === 'string' ? value.trim() : '');
@@ -195,6 +196,8 @@ const normalizeTier = (tier: ProductTier & { original_price?: number } & Record<
   price: Number(tier.price || 0),
   originalPrice: typeof tier.originalPrice === 'number' ? tier.originalPrice : Number(tier.original_price || 0),
   stock: Number(tier.stock || 0),
+  duration: pickFirstString(tier.duration),
+  durationSeconds: Math.max(0, Number(tier.durationSeconds ?? tier.duration_seconds ?? 0) || 0),
   image: resolveCatalogImageUrl(
     pickFirstString(tier.image, tier.imageUrl, tier.image_url, tier.thumbnail)
   ),
@@ -229,6 +232,7 @@ const normalizeProduct = (p: ProductPayload): Product => {
   return {
     ...p,
     originalPrice: typeof p.originalPrice === 'number' ? p.originalPrice : Number(p.original_price || 0),
+    durationSeconds: Math.max(0, Number(p.durationSeconds ?? p.duration_seconds ?? 0) || 0),
     features,
     tiers,
     image: resolveCatalogImageUrl(productImage),

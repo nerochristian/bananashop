@@ -409,6 +409,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
         stock: Number(tier.stock || 0),
         image: String(tier.image || ''),
         duration: String(tier.duration || ''),
+        durationSeconds: Math.max(0, Number(tier.durationSeconds || 0)),
       }))
     );
     setOpenEditor(true);
@@ -510,6 +511,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
           stock: Math.max(0, Number(tier.stock || 0)),
           image: String(tier.image || '').trim(),
           duration: String(tier.duration || '').trim(),
+          durationSeconds: Math.max(0, Math.round(Number(tier.durationSeconds || 0) || 0)),
         } satisfies ProductTier;
       })
       .filter((tier) => tier.name && tier.id);
@@ -1929,10 +1931,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
 
               <div className="xl:col-span-8 rounded-2xl border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.015))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)]">
                 <div className="mb-3 flex items-center justify-between">
-                  <div>
-                    <div className="text-sm font-black tracking-wide text-white">4. Product Tiers</div>
-                    <div className="text-xs text-yellow-200/70">Create variants like Basic, Country, 4K Plan. Stock is managed per tier with Add Keys.</div>
-                  </div>
+                    <div>
+                      <div className="text-sm font-black tracking-wide text-white">4. Product Tiers</div>
+                      <div className="text-xs text-yellow-200/70">Create variants like Basic, Country, 4K Plan. Stock is managed per tier with Add Keys. Set countdown in seconds (0 = no expiry).</div>
+                    </div>
                   <button
                     type="button"
                     onClick={() =>
@@ -1947,6 +1949,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
                           description: '',
                           image: '',
                           duration: draft.duration || '',
+                          durationSeconds: 0,
                         },
                       ])
                     }
@@ -1962,7 +1965,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
                       <span className="md:col-span-2">Tier ID</span>
                       <span className="md:col-span-2">Price</span>
                       <span className="md:col-span-2">Original</span>
-                      <span className="md:col-span-2">Duration</span>
+                      <span className="md:col-span-1">Duration</span>
+                      <span className="md:col-span-1">Expiry (s)</span>
                       <span className="md:col-span-1 text-right">Action</span>
                     </div>
                   )}
@@ -1999,8 +2003,25 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
                       <input
                         value={tier.duration || ''}
                         onChange={(e) => setTierDrafts((prev) => prev.map((item, i) => (i === idx ? { ...item, duration: e.target.value } : item)))}
-                        className={`${fieldCompactClass} md:col-span-2`}
+                        className={`${fieldCompactClass} md:col-span-1`}
                         placeholder="Duration"
+                      />
+                      <input
+                        type="number"
+                        min={0}
+                        step={1}
+                        value={Math.max(0, Number(tier.durationSeconds || 0) || 0)}
+                        onChange={(e) =>
+                          setTierDrafts((prev) =>
+                            prev.map((item, i) => (
+                              i === idx
+                                ? { ...item, durationSeconds: Math.max(0, Math.round(Number(e.target.value) || 0)) }
+                                : item
+                            ))
+                          )
+                        }
+                        className={`${fieldCompactClass} md:col-span-1`}
+                        placeholder="0"
                       />
                       <button
                         type="button"

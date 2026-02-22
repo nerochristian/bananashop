@@ -14,6 +14,79 @@ interface UserDashboardProps {
 
 const JUST_SIGNED_IN_KEY = 'robloxkeys.just_signed_in';
 
+const parseTimestamp = (value?: string): number | null => {
+  const input = String(value || '').trim();
+  if (!input) return null;
+  const parsed = Date.parse(input);
+  if (!Number.isFinite(parsed)) return null;
+  return parsed;
+};
+
+const formatCountdown = (remainingMs: number): string => {
+  const totalSeconds = Math.max(0, Math.floor(remainingMs / 1000));
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (days > 0) return `${days}d ${hours}h ${minutes}m ${seconds}s`;
+  if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
+  if (minutes > 0) return `${minutes}m ${seconds}s`;
+  return `${seconds}s`;
+};
+
+const durationLabelToSeconds = (label?: string): number | null => {
+  const text = String(label || '').trim().toLowerCase();
+  if (!text) return null;
+  if (/(lifetime|forever|permanent|unlimited|never expires)/.test(text)) return null;
+
+  const matches = [...text.matchAll(/(\d+(?:\.\d+)?)\s*([a-z]+)/g)];
+  if (matches.length === 0) return null;
+
+  let totalSeconds = 0;
+  for (const match of matches) {
+    const amount = Number(match[1] || 0);
+    const unit = String(match[2] || '').toLowerCase();
+    if (!Number.isFinite(amount) || amount <= 0) continue;
+
+    let multiplier = 0;
+    if (['s', 'sec', 'secs', 'second', 'seconds'].includes(unit)) multiplier = 1;
+    if (['m', 'min', 'mins', 'minute', 'minutes'].includes(unit)) multiplier = 60;
+    if (['h', 'hr', 'hrs', 'hour', 'hours'].includes(unit)) multiplier = 3600;
+    if (['d', 'day', 'days'].includes(unit)) multiplier = 86400;
+    if (['w', 'wk', 'wks', 'week', 'weeks'].includes(unit)) multiplier = 604800;
+    if (['mo', 'mos', 'month', 'months'].includes(unit)) multiplier = 2592000;
+    if (['y', 'yr', 'yrs', 'year', 'years'].includes(unit)) multiplier = 31536000;
+
+    if (multiplier > 0) {
+      totalSeconds += Math.floor(amount * multiplier);
+    }
+  }
+
+  return totalSeconds > 0 ? totalSeconds : null;
+};
+
+const resolveItemExpiryMs = (item: Order['items'][number], fallbackCreatedAtMs: number | null): number | null => {
+  const explicitExpiry = parseTimestamp(item.expiresAt);
+  if (explicitExpiry !== null) return explicitExpiry;
+
+  const durationSeconds = Number(item.durationSeconds || durationLabelToSeconds(item.duration) || 0);
+  if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) return null;
+
+  const startedAtMs = parseTimestamp(item.purchasedAt) ?? fallbackCreatedAtMs;
+  if (startedAtMs === null) return null;
+  return startedAtMs + durationSeconds * 1000;
+};
+
+const resolveOrderExpiryMs = (order: Order): number | null => {
+  const createdAtMs = parseTimestamp(order.createdAt);
+  const candidates = (order.items || [])
+    .map((item) => resolveItemExpiryMs(item, createdAtMs))
+    .filter((value): value is number => Number.isFinite(value));
+
+  if (candidates.length === 0) return null;
+  return Math.min(...candidates);
+};
+
 const DiscordGlyph = ({ className = 'h-4 w-4' }: { className?: string }) => (
   <svg viewBox="0 0 24 24" className={className} aria-hidden="true" fill="currentColor">
     <path d="M20.32 4.37A19.79 19.79 0 0 0 15.46 3c-.21.37-.44.87-.6 1.26a18.4 18.4 0 0 0-5.72 0A12.9 12.9 0 0 0 8.54 3a19.74 19.74 0 0 0-4.86 1.37C.59 9.06-.24 13.63.17 18.14a19.9 19.9 0 0 0 5.95 2.99c.48-.66.9-1.36 1.27-2.1-.7-.27-1.37-.6-2-.97.17-.13.34-.27.5-.41 3.86 1.81 8.05 1.81 11.86 0 .17.14.33.28.5.41-.64.37-1.31.7-2 .97.36.74.79 1.44 1.27 2.1a19.82 19.82 0 0 0 5.95-2.99c.49-5.23-.84-9.76-3.15-13.77ZM8.1 15.36c-1.16 0-2.11-1.06-2.11-2.36s.93-2.36 2.11-2.36 2.13 1.07 2.11 2.36c0 1.3-.94 2.36-2.11 2.36Zm7.8 0c-1.16 0-2.11-1.06-2.11-2.36s.93-2.36 2.11-2.36 2.13 1.07 2.11 2.36c0 1.3-.94 2.36-2.11 2.36Z" />
@@ -73,6 +146,7 @@ const DecryptingInput = ({ value }: { value?: string }) => {
 
 export const UserDashboard: React.FC<UserDashboardProps> = ({ user, onLogout, onBrowse, onUserUpdate, themeBlend, onThemeBlendChange }) => {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [countdownNowMs, setCountdownNowMs] = useState(() => Date.now());
   const [isDiscordConnecting, setIsDiscordConnecting] = useState(false);
   const [isDiscordDisconnecting, setIsDiscordDisconnecting] = useState(false);
   const [discordActionError, setDiscordActionError] = useState('');
@@ -97,6 +171,14 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ user, onLogout, on
       cancelled = true;
     };
   }, [user.id]);
+
+  useEffect(() => {
+    if (orders.length === 0) return;
+    const timerId = window.setInterval(() => {
+      setCountdownNowMs(Date.now());
+    }, 1000);
+    return () => window.clearInterval(timerId);
+  }, [orders.length]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -298,12 +380,23 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ user, onLogout, on
             <div className="space-y-6">
               {orders.map((order) => (
                 <div key={order.id} className="group overflow-hidden rounded-[26px] border border-white/5 bg-[#0a0a0a] shadow-2xl transition-all hover:border-[#facc15]/20 sm:rounded-[40px]">
+                  {(() => {
+                    const orderExpiryMs = resolveOrderExpiryMs(order);
+                    const hasCountdown = orderExpiryMs !== null;
+                    const isExpired = hasCountdown ? orderExpiryMs <= countdownNowMs : false;
+                    const expiryLabel = hasCountdown
+                      ? (isExpired ? 'Expired' : `Expires in ${formatCountdown(orderExpiryMs - countdownNowMs)}`)
+                      : new Date(order.createdAt).toLocaleDateString();
+                    const expiryClass = isExpired ? 'text-red-300/80' : 'text-[#facc15]/80';
+
+                    return (
+                      <>
                   <div className="flex flex-col gap-2 border-b border-white/5 bg-white/[0.01] p-4 sm:flex-row sm:items-center sm:justify-between sm:p-8">
                     <div className="flex flex-wrap items-center gap-2 sm:gap-4">
                       <span className="text-[10px] font-black text-white/30 uppercase tracking-widest">Protocol ID: {order.id}</span>
                       <span className="bg-[#22c55e]/10 text-[#22c55e] px-2 py-0.5 rounded text-[8px] font-black tracking-widest border border-[#22c55e]/20">AUTHENTICATED</span>
                     </div>
-                    <span className="text-[10px] font-black text-white/30 uppercase tracking-widest">{new Date(order.createdAt).toLocaleDateString()}</span>
+                    <span className={`text-[10px] font-black uppercase tracking-widest ${hasCountdown ? expiryClass : 'text-white/30'}`}>{expiryLabel}</span>
                   </div>
                   <div className="space-y-4 p-4 sm:p-8">
                     {order.items.map((item) => (
@@ -330,6 +423,9 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ user, onLogout, on
                       </div>
                     ))}
                   </div>
+                      </>
+                    );
+                  })()}
                 </div>
               ))}
             </div>

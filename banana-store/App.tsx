@@ -484,6 +484,7 @@ export default function App() {
       price: tier ? Number(tier.price || 0) : Number(product.price || 0),
       originalPrice: tier ? Number(tier.originalPrice || 0) : Number(product.originalPrice || 0),
       duration: tier?.duration || product.duration,
+      durationSeconds: Math.max(0, Number(tier?.durationSeconds ?? product.durationSeconds ?? 0) || 0),
       image: tier?.image || product.image,
       stock,
     };

@@ -15,6 +15,7 @@ export interface ProductTier {
   stock: number;
   image?: string;
   duration?: string;
+  durationSeconds?: number;
 }
 
 export interface Product {
@@ -25,6 +26,7 @@ export interface Product {
   price: number;
   originalPrice: number;
   duration: string;
+  durationSeconds?: number;
   type: ServiceType;
   features: string[];
   detailedDescription?: string[];
@@ -52,6 +54,8 @@ export interface CartItem extends Product {
   productId?: string;
   tierId?: string;
   tierName?: string;
+  purchasedAt?: string;
+  expiresAt?: string;
 }
 
 export interface ChatMessage {
