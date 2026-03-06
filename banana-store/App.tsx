@@ -157,6 +157,23 @@ const resolveRoute = (
   return { view: 'product-detail', product: match };
 };
 
+const resolvePreferredFavicon = (branding: { logoUrl?: string | null; faviconUrl?: string | null }): string => {
+  const logo = String(branding.logoUrl || '').trim();
+  const favicon = String(branding.faviconUrl || '').trim();
+  return logo || favicon;
+};
+
+const applyDocumentFavicon = (href: string) => {
+  const url = String(href || '').trim();
+  if (!url) return;
+  const favicon = document.querySelector("link[rel='icon']") || document.createElement('link');
+  favicon.setAttribute('rel', 'icon');
+  favicon.setAttribute('href', url);
+  if (!favicon.parentNode) {
+    document.head.appendChild(favicon);
+  }
+};
+
 export default function App() {
   const [view, setView] = useState<'store' | 'auth' | 'admin' | 'product-detail' | 'dashboard' | 'privacy' | 'terms'>('store');
   const [user, setUser] = useState<User | null>(null);
@@ -184,22 +201,21 @@ export default function App() {
   });
 
   useEffect(() => {
+    const preferredFavicon = resolvePreferredFavicon({
+      logoUrl: adminSettings.logoUrl,
+      faviconUrl: adminSettings.faviconUrl,
+    });
     applyRuntimeBranding({
       storeName: adminSettings.storeName,
       logoUrl: adminSettings.logoUrl,
       bannerUrl: adminSettings.bannerUrl,
-      faviconUrl: adminSettings.faviconUrl,
+      faviconUrl: preferredFavicon,
     });
     document.title = BRAND_CONFIG.identity.pageTitle;
-
-    if (BRAND_CONFIG.assets.faviconUrl) {
-      const favicon = document.querySelector("link[rel='icon']") || document.createElement('link');
-      favicon.setAttribute('rel', 'icon');
-      favicon.setAttribute('href', BRAND_CONFIG.assets.faviconUrl);
-      if (!favicon.parentNode) {
-        document.head.appendChild(favicon);
-      }
-    }
+    applyDocumentFavicon(resolvePreferredFavicon({
+      logoUrl: BRAND_CONFIG.assets.logoUrl,
+      faviconUrl: BRAND_CONFIG.assets.faviconUrl,
+    }));
   }, [adminSettings]);
 
   const applyRoute = (pathname: string, catalog: Product[], session: User | null, search: string = window.location.search) => {
@@ -272,27 +288,25 @@ export default function App() {
     }
     applyRoute(window.location.pathname, localProducts, session, window.location.search);
     document.title = BRAND_CONFIG.identity.pageTitle;
-
-    if (BRAND_CONFIG.assets.faviconUrl) {
-      const favicon = document.querySelector("link[rel='icon']") || document.createElement('link');
-      favicon.setAttribute('rel', 'icon');
-      favicon.setAttribute('href', BRAND_CONFIG.assets.faviconUrl);
-      if (!favicon.parentNode) {
-        document.head.appendChild(favicon);
-      }
-    }
+    applyDocumentFavicon(resolvePreferredFavicon({
+      logoUrl: BRAND_CONFIG.assets.logoUrl,
+      faviconUrl: BRAND_CONFIG.assets.faviconUrl,
+    }));
 
     const refreshApiHealth = async () => {
       try {
         const health = await ShopApiService.health();
         setApiOnline(Boolean(health.ok));
         if (health.branding && typeof health.branding === 'object') {
+          const healthLogoUrl = String(health.branding.logoUrl || '').trim();
+          const healthFaviconUrl = String(health.branding.faviconUrl || '').trim();
           applyRuntimeBranding({
             storeName: String(health.branding.storeName || '').trim(),
-            logoUrl: String(health.branding.logoUrl || '').trim(),
+            logoUrl: healthLogoUrl,
             bannerUrl: String(health.branding.bannerUrl || '').trim(),
-            faviconUrl: String(health.branding.faviconUrl || '').trim(),
+            faviconUrl: resolvePreferredFavicon({ logoUrl: healthLogoUrl, faviconUrl: healthFaviconUrl }),
           });
+          applyDocumentFavicon(resolvePreferredFavicon({ logoUrl: healthLogoUrl, faviconUrl: healthFaviconUrl }));
         }
       } catch {
         setApiOnline(false);
