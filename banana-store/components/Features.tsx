@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { BadgeCheck, Check, ChevronDown, MessageCircle, ShieldCheck, TriangleAlert, X } from 'lucide-react';
+import { BadgeCheck, Check, ChevronDown, MessageCircle, ShieldCheck } from 'lucide-react';
 import { BRAND_CONFIG } from '../config/brandConfig';
 import { ShopApiService } from '../services/shopApiService';
 
@@ -42,6 +42,69 @@ const BASIC_RISKS = [
   'Slow issue resolution',
   'Basic security coverage',
 ];
+
+const parseDiscordInviteCode = (value: string): string => {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  try {
+    const parsed = new URL(raw.startsWith('http') ? raw : `https://${raw}`);
+    const host = parsed.hostname.toLowerCase();
+    if (host === 'discord.gg') {
+      return parsed.pathname.replace(/^\/+/, '').split('/')[0] || '';
+    }
+    if (host === 'discord.com' || host === 'www.discord.com' || host === 'discordapp.com' || host === 'www.discordapp.com') {
+      const segments = parsed.pathname.split('/').filter(Boolean);
+      const inviteIndex = segments.findIndex((segment) => segment.toLowerCase() === 'invite');
+      if (inviteIndex >= 0 && segments[inviteIndex + 1]) {
+        return segments[inviteIndex + 1];
+      }
+      return segments[0] || '';
+    }
+  } catch {
+    return '';
+  }
+  return '';
+};
+
+const fetchInviteStats = async (inviteCode: string): Promise<{ memberCount: number; onlineCount: number } | null> => {
+  const normalizedCode = String(inviteCode || '').trim();
+  if (!normalizedCode) return null;
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), 6500);
+  try {
+    const response = await fetch(
+      `https://discord.com/api/v10/invites/${encodeURIComponent(normalizedCode)}?with_counts=true&with_expiration=true`,
+      { method: 'GET', signal: controller.signal }
+    );
+    if (!response.ok) return null;
+    const payload = await response.json() as {
+      approximate_member_count?: number;
+      approximate_presence_count?: number;
+      guild?: {
+        approximate_member_count?: number;
+        approximate_presence_count?: number;
+      };
+    };
+    const memberCount = Math.max(
+      0,
+      Math.round(
+        Number(payload.approximate_member_count ?? payload.guild?.approximate_member_count ?? 0) || 0
+      )
+    );
+    const onlineCount = Math.max(
+      0,
+      Math.round(
+        Number(payload.approximate_presence_count ?? payload.guild?.approximate_presence_count ?? 0) || 0
+      )
+    );
+    if (memberCount <= 0 && onlineCount <= 0) return null;
+    return { memberCount, onlineCount };
+  } catch {
+    return null;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+};
 
 const useScrollReveal = <T extends HTMLElement>(threshold: number = 0.14) => {
   const ref = useRef<T | null>(null);
@@ -98,31 +161,42 @@ export const Features: React.FC = () => {
 
   useEffect(() => {
     let disposed = false;
+    const inviteCode = parseDiscordInviteCode(communityHref);
 
     const refreshCommunityStats = async () => {
+      let memberCount = 0;
+      let onlineCount = 0;
       try {
         const stats = await ShopApiService.getCommunityStats();
         if (disposed) return;
-        const memberCount = Math.max(0, Math.round(Number(stats.memberCount || 0)));
-        const onlineCount = Math.max(0, Math.round(Number(stats.onlineCount || 0)));
-        if (memberCount > 0 || onlineCount > 0) {
-          setCommunityStats({ memberCount, onlineCount });
-        }
+        memberCount = Math.max(0, Math.round(Number(stats.memberCount || 0)));
+        onlineCount = Math.max(0, Math.round(Number(stats.onlineCount || 0)));
       } catch {
-        // Keep the design fallback value when the API is unavailable.
+        // Continue with invite fallback below.
+      }
+
+      if (memberCount <= 0 && onlineCount <= 0 && inviteCode) {
+        const inviteStats = await fetchInviteStats(inviteCode);
+        if (disposed || !inviteStats) return;
+        memberCount = inviteStats.memberCount;
+        onlineCount = inviteStats.onlineCount;
+      }
+
+      if (memberCount > 0 || onlineCount > 0) {
+        setCommunityStats({ memberCount, onlineCount });
       }
     };
 
     void refreshCommunityStats();
     const intervalId = window.setInterval(() => {
       void refreshCommunityStats();
-    }, 60000);
+    }, 20000);
 
     return () => {
       disposed = true;
       window.clearInterval(intervalId);
     };
-  }, []);
+  }, [communityHref]);
 
   useEffect(() => {
     const currentWord = TYPEWRITER_WORDS[wordIndex] || TYPEWRITER_WORDS[0];
@@ -153,14 +227,13 @@ export const Features: React.FC = () => {
     return () => window.clearTimeout(timer);
   }, [isDeleting, typedWord, wordIndex]);
 
-  const formattedMemberCount = communityStats.memberCount > 0 ? communityStats.memberCount.toLocaleString() : '0';
-  const formattedOnlineCount = communityStats.onlineCount > 0 ? communityStats.onlineCount.toLocaleString() : '0';
-  const displayedOnlineCount = communityStats.onlineCount > 0
-    ? communityStats.onlineCount
-    : (communityStats.memberCount > 0 ? communityStats.memberCount : 0);
-  const onlineRatio = communityStats.memberCount > 0
-    ? `${Math.round((communityStats.onlineCount / communityStats.memberCount) * 100)}%`
-    : '--';
+  const formattedMemberCount = communityStats.memberCount > 0 ? communityStats.memberCount.toLocaleString() : '--';
+  const displayedOnlineCount = Math.max(0, communityStats.onlineCount);
+  const onlineStatusText = displayedOnlineCount > 0 ? `${displayedOnlineCount.toLocaleString()} members online` : 'Syncing member stats';
+  const overflowOnlineMembers = Math.max(0, displayedOnlineCount - 3);
+  const overflowOnlineLabel = overflowOnlineMembers > 99 ? '+99+' : `+${overflowOnlineMembers}`;
+  const fakeTicketsSolved = (18420 + Math.round(Math.max(0, communityStats.memberCount) * 1.35)).toLocaleString();
+  const fakeAvgResponseMinutes = Math.max(0.8, 1.4 - Math.min(0.4, Math.max(0, communityStats.onlineCount) / 3000)).toFixed(1);
 
   return (
     <section id="features" className="template-features relative overflow-hidden px-4 pb-24 pt-8 sm:px-6 sm:pb-32 sm:pt-10">
@@ -183,67 +256,73 @@ export const Features: React.FC = () => {
             </p>
           </div>
 
-          <div className="template-panel template-panel--comparison relative mt-8 overflow-hidden rounded-[34px] border border-yellow-400/20 bg-[linear-gradient(145deg,rgba(23,17,5,0.94),rgba(7,6,3,0.95))] lg:grid lg:grid-cols-2">
-            <div className="border-b border-yellow-400/20 p-6 sm:p-8 lg:border-b-0 lg:border-r lg:pr-10">
-              <h4 className="text-3xl font-black text-white">{BRAND_CONFIG.identity.storeName}</h4>
-              <p className="text-sm font-semibold text-yellow-100/80">Premium choice and trusted support</p>
+          <div className="comparison-block mt-8">
+            <div className="comp-wrapper">
+              <div className="comp-cards">
+                <div className="comp-card comp-your-store">
+                  <div className="comp-card-header">
+                    <div>
+                      <h3 className="comp-store-name">{BRAND_CONFIG.identity.storeName}</h3>
+                      <p className="comp-store-subtitle">Premium choice / trusted</p>
+                    </div>
+                  </div>
 
-              <div className="mt-7">
-                <div className="mb-2 flex items-center justify-between text-xs font-bold uppercase tracking-[0.14em] text-white/55">
-                  <span>Store score</span>
-                  <span className="rounded-full bg-yellow-300/20 px-2 py-1 text-yellow-100">10/10</span>
+                  <div className="comp-power-bar-wrapper">
+                    <p className="comp-power-label">
+                      Store score
+                      <span className="comp-score-chip">10/10</span>
+                    </p>
+                    <div className="comp-power-track">
+                      <div className="comp-power-fill" style={{ width: '100%' }} />
+                    </div>
+                  </div>
+
+                  <div className="comp-features-grid">
+                    {PREMIUM_ADVANTAGES.map((advantage) => (
+                      <div key={advantage} className="comp-feature-item">
+                        <span className="comp-feature-icon">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="m5 12 4.5 4.5L19 7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </span>
+                        <span className="comp-feature-text">{advantage}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div className="h-1.5 rounded-full bg-white/10">
-                  <div className="h-full w-full rounded-full bg-[linear-gradient(90deg,#facc15,#fde047)]" />
+
+                <div className="comp-card comp-competitor">
+                  <div className="comp-card-header">
+                    <div>
+                      <h3 className="comp-store-name">Other stores</h3>
+                      <p className="comp-store-subtitle">Basic / slow / risky</p>
+                    </div>
+                  </div>
+
+                  <div className="comp-power-bar-wrapper">
+                    <p className="comp-power-label">
+                      Store score
+                      <span className="comp-score-chip comp-score-chip--dim">6/10</span>
+                    </p>
+                    <div className="comp-power-track">
+                      <div className="comp-power-fill comp-power-fill--competitor" style={{ width: '62%' }} />
+                    </div>
+                  </div>
+
+                  <div className="comp-features-grid">
+                    {BASIC_RISKS.map((risk, index) => (
+                      <div key={risk} className="comp-feature-item">
+                        <span className={`comp-feature-icon ${index % 2 === 0 ? 'comp-feature-icon--bad' : 'comp-feature-icon--warn'}`}>
+                          {index % 2 === 0 ? 'x' : '!'}
+                        </span>
+                        <span className="comp-feature-text">{risk}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
 
-              <ul className="mt-6 space-y-3">
-                {PREMIUM_ADVANTAGES.map((advantage) => (
-                  <li
-                    key={advantage}
-                    className="flex items-center gap-3 rounded-2xl border border-yellow-400/20 bg-yellow-300/10 px-4 py-3"
-                  >
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-yellow-300/20 text-yellow-100">
-                      <Check className="h-4 w-4" />
-                    </span>
-                    <span className="text-sm font-semibold text-white">{advantage}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="p-6 sm:p-8 lg:pl-10">
-              <h4 className="text-3xl font-black text-white/95">Other Stores</h4>
-              <p className="text-sm font-semibold text-white/50">Basic, slower, and risky</p>
-
-              <div className="mt-7">
-                <div className="mb-2 flex items-center justify-between text-xs font-bold uppercase tracking-[0.14em] text-white/55">
-                  <span>Store score</span>
-                  <span className="rounded-full bg-white/10 px-2 py-1 text-white/75">6/10</span>
-                </div>
-                <div className="h-1.5 rounded-full bg-white/10">
-                  <div className="h-full w-3/5 rounded-full bg-white/40" />
-                </div>
-              </div>
-
-              <ul className="mt-6 space-y-3">
-                {BASIC_RISKS.map((risk, index) => (
-                  <li
-                    key={risk}
-                    className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3"
-                  >
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/8 text-white/65">
-                      {index % 2 === 0 ? <X className="h-4 w-4" /> : <TriangleAlert className="h-4 w-4" />}
-                    </span>
-                    <span className="text-sm font-semibold text-white/75">{risk}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="pointer-events-none absolute left-1/2 top-1/2 hidden h-24 w-24 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-yellow-300/40 bg-[#0c0903] text-4xl font-black text-yellow-100 shadow-[0_0_36px_rgba(250,204,21,0.3)] lg:flex">
-              VS
+              <div className="comp-vs-divider">VS</div>
             </div>
           </div>
         </section>
@@ -382,14 +461,16 @@ export const Features: React.FC = () => {
 
                 <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-emerald-300/35 bg-emerald-400/10 px-3 py-1.5 text-sm font-semibold text-emerald-100">
                   <span className="h-2 w-2 rounded-full bg-emerald-300" />
-                  {displayedOnlineCount.toLocaleString()} members online
+                  {onlineStatusText}
                 </div>
 
                 <div className="mt-4 flex items-center gap-2">
                   <span className="h-10 w-10 rounded-full border border-white/15 bg-[linear-gradient(140deg,#fde68a,#facc15)] shadow-[0_0_20px_rgba(250,204,21,0.28)]" />
                   <span className="h-10 w-10 rounded-full border border-white/15 bg-[linear-gradient(140deg,#60a5fa,#818cf8)]" />
                   <span className="h-10 w-10 rounded-full border border-white/15 bg-[linear-gradient(140deg,#fb923c,#f87171)]" />
-                  <span className="rounded-full bg-white/10 px-2.5 py-1 text-[22px] leading-none font-black text-white/90">+32</span>
+                  {overflowOnlineMembers > 0 && (
+                    <span className="rounded-full bg-white/10 px-2.5 py-1 text-[22px] leading-none font-black text-white/90">{overflowOnlineLabel}</span>
+                  )}
                 </div>
 
                 <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -398,12 +479,12 @@ export const Features: React.FC = () => {
                     <p className="mt-2 text-xs font-semibold text-white/45">Total members</p>
                   </div>
                   <div className="rounded-2xl border border-white/10 bg-black/25 p-3 sm:p-3.5">
-                    <p className="text-2xl leading-none font-black tabular-nums tracking-tight text-white sm:text-3xl lg:text-[34px]">{formattedOnlineCount}</p>
-                    <p className="mt-2 text-xs font-semibold text-white/45">Members online</p>
+                    <p className="text-2xl leading-none font-black tabular-nums tracking-tight text-white sm:text-3xl lg:text-[34px]">{fakeTicketsSolved}</p>
+                    <p className="mt-2 text-xs font-semibold text-white/45">Tickets solved</p>
                   </div>
                   <div className="rounded-2xl border border-white/10 bg-black/25 p-3 sm:p-3.5">
-                    <p className="text-2xl leading-none font-black tabular-nums tracking-tight text-white sm:text-3xl lg:text-[34px]">{onlineRatio}</p>
-                    <p className="mt-2 text-xs font-semibold text-white/45">Online ratio</p>
+                    <p className="text-2xl leading-none font-black tabular-nums tracking-tight text-white sm:text-3xl lg:text-[34px]">{fakeAvgResponseMinutes}</p>
+                    <p className="mt-2 text-xs font-semibold text-white/45">Avg. response (min)</p>
                   </div>
                 </div>
               </div>

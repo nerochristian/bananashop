@@ -454,19 +454,55 @@ export const ShopApiService = {
       headers: buildHeaders(),
     });
     if (!response.ok) throw new Error(`Community stats request failed (${response.status})`);
-    const payload = await response.json() as {
-      ok?: boolean;
-      guildId?: string;
-      guildName?: string;
-      memberCount?: number;
-      onlineCount?: number;
+    const payload = await response.json() as Record<string, unknown>;
+    const guildPayload =
+      typeof payload.guild === 'object' && payload.guild !== null
+        ? (payload.guild as Record<string, unknown>)
+        : {};
+    const pickNumber = (...values: unknown[]): number => {
+      for (const value of values) {
+        const numeric = Number(value);
+        if (Number.isFinite(numeric)) {
+          return numeric;
+        }
+      }
+      return 0;
     };
+    const pickStringValue = (...values: unknown[]): string => {
+      for (const value of values) {
+        const candidate = String(value || '').trim();
+        if (candidate) return candidate;
+      }
+      return '';
+    };
+
+    const memberCount = pickNumber(
+      payload.memberCount,
+      payload.member_count,
+      payload.approximateMemberCount,
+      payload.approximate_member_count,
+      guildPayload.memberCount,
+      guildPayload.member_count,
+      guildPayload.approximateMemberCount,
+      guildPayload.approximate_member_count
+    );
+    const onlineCount = pickNumber(
+      payload.onlineCount,
+      payload.online_count,
+      payload.approximatePresenceCount,
+      payload.approximate_presence_count,
+      guildPayload.onlineCount,
+      guildPayload.online_count,
+      guildPayload.approximatePresenceCount,
+      guildPayload.approximate_presence_count
+    );
+
     return {
       ok: Boolean(payload.ok),
-      guildId: payload.guildId,
-      guildName: payload.guildName,
-      memberCount: Math.max(0, Number(payload.memberCount || 0) || 0),
-      onlineCount: Math.max(0, Number(payload.onlineCount || 0) || 0),
+      guildId: pickStringValue(payload.guildId, payload.guild_id, guildPayload.id),
+      guildName: pickStringValue(payload.guildName, payload.guild_name, guildPayload.name),
+      memberCount: Math.max(0, Math.round(memberCount)),
+      onlineCount: Math.max(0, Math.round(onlineCount)),
     };
   },
 
