@@ -636,59 +636,12 @@ export default function App() {
 
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const storeThemeRatio = Math.max(0, Math.min(1, storeThemeBlend / 100));
-  const shouldShowAnimatedBackground = view === 'store' || view === 'product-detail' || view === 'dashboard';
 
-  // Authentication Required View
-  if (view === 'auth') {
-    return (
-      <Auth
-        onAuthComplete={handleAuthComplete}
-        onBack={() => {
-          const checkoutIntent = pendingAuthIntent || readCheckoutIntent();
-          if (checkoutIntent) {
-            const { returnPath, returnSearch } = checkoutIntent;
-            setPendingAuthIntent(null);
-            writeCheckoutIntent(null);
-            pushRoute(returnPath || '/', products, user, returnSearch || '');
-            return;
-          }
-          pushRoute('/', products, user);
-        }}
-      />
-    );
-  }
-
-  // Admin View
-  if (view === 'admin' && user?.role === 'admin') {
-    return (
-      <div className="page-motion">
-        <AdminPanel
-          products={products}
-          setProducts={(newProducts) => {
-            if (typeof newProducts === 'function') {
-              setProducts((prev) => (newProducts as (prev: Product[]) => Product[])(prev));
-              return;
-            }
-            setProducts(newProducts);
-          }}
-          settings={adminSettings}
-          setSettings={setAdminSettings}
-          onLogout={handleLogout}
-        />
-      </div>
-    );
-  }
-
-  return (
-    <div className="app-shell perf-safety min-h-screen relative z-10 transition-opacity duration-500">
-      <div
-        className="pointer-events-none fixed inset-0 z-0 overflow-hidden transition-opacity duration-700 aurora-mode-lite"
-        style={{
-          opacity: shouldShowAnimatedBackground ? 1 : 0,
-        }}
-      >
+  const renderSiteFrame = (content: React.ReactNode) => (
+    <div className="app-shell relative z-10 min-h-screen min-h-[100svh] transition-opacity duration-500">
+      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden transition-opacity duration-700 aurora-mode-lite">
         <div
-          className="absolute inset-0"
+          className="absolute -inset-[12%]"
           style={{
             opacity: 0.98,
             background: `
@@ -701,6 +654,7 @@ export default function App() {
         <div className="aurora-layer aurora-layer-a" style={{ opacity: 0.32 + storeThemeRatio * 0.26 }} />
         <div className="aurora-layer aurora-layer-b" style={{ opacity: 0.28 + storeThemeRatio * 0.24 }} />
         <div className="aurora-layer aurora-layer-haze" style={{ opacity: 0.22 + storeThemeRatio * 0.18 }} />
+        <div className="absolute inset-x-0 -bottom-px h-40 bg-gradient-to-b from-transparent via-black/40 to-[#050505]" />
       </div>
       {vaultTransition && (
         <div className={`fixed inset-0 z-[130] flex items-center justify-center px-5 transition-opacity duration-500 ${vaultTransition.phase === 'routing' ? 'opacity-0' : 'opacity-100'}`}>
@@ -713,7 +667,7 @@ export default function App() {
             <div className="mb-5 flex justify-center">
               <div className="relative flex h-20 w-20 items-center justify-center rounded-full border border-yellow-300/50 bg-yellow-400/15">
                 <div className="absolute inset-0 rounded-full border border-yellow-300/35 animate-ping" />
-                <span className="text-4xl font-black text-yellow-200">✓</span>
+                <span className="text-4xl font-black text-yellow-200">&#10003;</span>
               </div>
             </div>
             <p className="text-center text-[11px] font-black uppercase tracking-[0.34em] text-yellow-100/75">
@@ -748,7 +702,55 @@ export default function App() {
           </div>
         </div>
       )}
-      <div className="relative z-10">
+      <div className="relative z-10">{content}</div>
+    </div>
+  );
+
+  const handleAuthBack = () => {
+    const checkoutIntent = pendingAuthIntent || readCheckoutIntent();
+    if (checkoutIntent) {
+      const { returnPath, returnSearch } = checkoutIntent;
+      setPendingAuthIntent(null);
+      writeCheckoutIntent(null);
+      pushRoute(returnPath || '/', products, user, returnSearch || '');
+      return;
+    }
+    pushRoute('/', products, user);
+  };
+
+  // Authentication Required View
+  if (view === 'auth') {
+    return renderSiteFrame(
+      <Auth
+        onAuthComplete={handleAuthComplete}
+        onBack={handleAuthBack}
+      />
+    );
+  }
+
+  // Admin View
+  if (view === 'admin' && user?.role === 'admin') {
+    return renderSiteFrame(
+      <div className="page-motion">
+        <AdminPanel
+          products={products}
+          setProducts={(newProducts) => {
+            if (typeof newProducts === 'function') {
+              setProducts((prev) => (newProducts as (prev: Product[]) => Product[])(prev));
+              return;
+            }
+            setProducts(newProducts);
+          }}
+          settings={adminSettings}
+          setSettings={setAdminSettings}
+          onLogout={handleLogout}
+        />
+      </div>
+    );
+  }
+
+  return renderSiteFrame(
+    <>
       <Navbar
         cartCount={cartCount}
         onCartClick={() => setIsCartOpen(true)}
@@ -769,17 +771,23 @@ export default function App() {
 
       <main className="transition-all duration-500 ease-in-out">
         {view === 'store' && (
-          <div className="animate-reveal page-motion">
-            {apiOnline === false && (
-              <div className="mx-auto mt-28 mb-4 max-w-7xl px-6">
-                <div className="rounded-xl border border-yellow-400/30 bg-yellow-400/10 px-4 py-3 text-xs font-bold uppercase tracking-wider text-yellow-200">
-                  Store API offline. Local fallback is disabled.
+          <div className="animate-reveal page-motion relative overflow-hidden">
+            <div className="store-wallpaper pointer-events-none absolute inset-0 z-0">
+              <div className="store-wallpaper-glow" />
+              <div className="store-wallpaper-grid" />
+            </div>
+            <div className="relative z-10">
+              {apiOnline === false && (
+                <div className="mx-auto mt-28 mb-4 max-w-7xl px-6">
+                  <div className="rounded-xl border border-yellow-400/30 bg-yellow-400/10 px-4 py-3 text-xs font-bold uppercase tracking-wider text-yellow-200">
+                    Store API offline. Local fallback is disabled.
+                  </div>
                 </div>
-              </div>
-            )}
-            <Hero />
-            <ProductList products={products} onView={handleViewProduct} onBuyNow={handleBuyNow} themeBlend={storeThemeRatio} />
-            <Features />
+              )}
+              <Hero />
+              <ProductList products={products} onView={handleViewProduct} onBuyNow={handleBuyNow} themeBlend={storeThemeRatio} />
+              <Features />
+            </div>
           </div>
         )}
         {view === 'product-detail' && selectedProduct && (
@@ -857,7 +865,6 @@ export default function App() {
       />
 
       <ChatBot products={products} />
-      </div>
-    </div>
+    </>
   );
 }

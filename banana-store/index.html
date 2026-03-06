@@ -215,47 +215,19 @@
 
     body {
       font-family: 'Inter', sans-serif;
-      background-color: #050505;
-      background-image:
-        radial-gradient(circle at 50% -22%, rgba(250, 204, 21, 0.16) 0%, rgba(250, 204, 21, 0.04) 24%, rgba(5, 5, 5, 0) 58%),
-        linear-gradient(180deg, #060603 0%, #030303 48%, #020202 100%);
-      background-size: 100% 100%, 100% 100%;
+      background-color: #020202;
       color: #f8fafc;
-      min-height: 100vh;
-      background-attachment: fixed;
+      min-height: 100svh;
       position: relative;
       overflow-x: hidden;
     }
 
     body::before {
-      content: '';
-      position: fixed;
-      inset: -20%;
-      background-image:
-        radial-gradient(58vw 42vh at 4% 78%, rgba(250, 204, 21, 0.62) 0%, rgba(250, 204, 21, 0.24) 38%, rgba(250, 204, 21, 0.06) 62%, transparent 74%),
-        radial-gradient(54vw 38vh at 98% 22%, rgba(250, 204, 21, 0.60) 0%, rgba(250, 204, 21, 0.22) 40%, rgba(250, 204, 21, 0.04) 64%, transparent 76%),
-        radial-gradient(44vw 32vh at 86% 86%, rgba(250, 204, 21, 0.44) 0%, rgba(250, 204, 21, 0.16) 42%, rgba(250, 204, 21, 0.03) 66%, transparent 78%);
-      filter: blur(28px);
-      opacity: 0.62;
-      animation: goldBlobFlow 22s ease-in-out infinite alternate;
-      pointer-events: none;
-      z-index: 0;
+      content: none;
     }
 
     body::after {
-      content: '';
-      position: fixed;
-      inset: -14%;
-      background-image:
-        radial-gradient(120% 68% at 0% 100%, rgba(250, 204, 21, 0.30) 0 41%, rgba(250, 204, 21, 0.12) 43%, rgba(250, 204, 21, 0.03) 50%, transparent 58%),
-        radial-gradient(122% 68% at 100% 0%, rgba(250, 204, 21, 0.26) 0 39%, rgba(250, 204, 21, 0.10) 42%, rgba(250, 204, 21, 0.03) 49%, transparent 57%),
-        radial-gradient(140% 80% at 50% 56%, rgba(250, 204, 21, 0.12) 0%, rgba(250, 204, 21, 0.04) 36%, transparent 62%);
-      background-repeat: no-repeat;
-      filter: blur(10px);
-      opacity: 0.5;
-      animation: goldRibbonSweep 18s ease-in-out infinite alternate;
-      pointer-events: none;
-      z-index: 0;
+      content: none;
     }
 
     .card-glow {

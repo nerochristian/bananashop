@@ -112,7 +112,7 @@ export const ProductTierPanel: React.FC<ProductTierPanelProps> = ({
             : 'opacity-0 translate-y-12 animate-[tierPanelIn_700ms_cubic-bezier(0.16,1,0.3,1)_80ms_forwards]'
         }`}
       >
-        <div className="pointer-events-none absolute -top-24 left-1/2 h-64 w-[80%] -translate-x-1/2 bg-yellow-500/10 blur-[100px]" />
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-48 bg-[radial-gradient(78%_130%_at_50%_-20%,rgba(250,204,21,0.2)_0%,rgba(250,204,21,0.09)_34%,rgba(250,204,21,0.02)_56%,transparent_78%)]" />
 
         <div className="relative flex items-center justify-between border-b border-white/10 bg-gradient-to-b from-white/[0.03] to-transparent px-4 py-4 sm:px-7">
           <div>

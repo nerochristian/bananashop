@@ -1030,7 +1030,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, setProducts, s
   };
 
   return (
-    <div className="relative min-h-screen bg-[#050505] text-white flex overflow-hidden">
+    <div className="relative flex min-h-screen min-h-[100svh] overflow-hidden bg-transparent text-white">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(250,204,21,0.16),transparent_46%),radial-gradient(circle_at_bottom_left,rgba(250,204,21,0.08),transparent_38%)]" />
       <div className="pointer-events-none absolute inset-0 opacity-35 [background-image:linear-gradient(rgba(250,204,21,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(250,204,21,0.08)_1px,transparent_1px)] [background-size:48px_48px]" />
 

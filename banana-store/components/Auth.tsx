@@ -86,7 +86,7 @@ export const Auth: React.FC<AuthProps> = ({ onAuthComplete, onBack }) => {
   };
 
   return (
-    <div className="page-motion relative flex min-h-screen items-center justify-center bg-[#050505] px-3 sm:px-4">
+    <div className="page-motion relative isolate flex min-h-[100svh] items-center justify-center overflow-hidden px-3 pb-20 pt-16 sm:px-4 sm:pb-24 sm:pt-20">
       <div className="ambient-orb pointer-events-none absolute left-1/2 top-1/2 h-[460px] w-[460px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-yellow-500/5 blur-[120px] sm:h-[600px] sm:w-[600px]"></div>
 
       <button
@@ -210,7 +210,7 @@ export const Auth: React.FC<AuthProps> = ({ onAuthComplete, onBack }) => {
         </div>
       </div>
 
-      <div className="fixed bottom-7 hidden text-[9px] font-black uppercase tracking-[0.4em] text-white/10 sm:block">
+      <div className="pointer-events-none absolute inset-x-0 bottom-5 hidden text-center text-[9px] font-black uppercase tracking-[0.4em] text-white/10 sm:block">
         Encrypted AES-256 Session Layer Active
       </div>
     </div>
